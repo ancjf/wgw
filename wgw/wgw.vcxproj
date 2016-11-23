@@ -105,6 +105,9 @@
     <None Include="res\wgw.rc2" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DlgAnswer.h" />
+    <ClInclude Include="DlgCheck.h" />
+    <ClInclude Include="DlgOther.h" />
     <ClInclude Include="EnumSerial.h" />
     <ClInclude Include="hid.h" />
     <ClInclude Include="mscomm1.h" />
@@ -117,6 +120,9 @@
     <ClInclude Include="wgwDlg.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DlgAnswer.cpp" />
+    <ClCompile Include="DlgCheck.cpp" />
+    <ClCompile Include="DlgOther.cpp" />
     <ClCompile Include="EnumSerial.cpp" />
     <ClCompile Include="hid.cpp" />
     <ClCompile Include="mscomm1.cpp" />

@@ -5,6 +5,9 @@
 #pragma once
 #include "mscomm1.h"
 #include "stdint.h"
+#include "DlgAnswer.h"
+#include "DlgCheck.h"
+#include "DlgOther.h"
 #include <map>
 #include <vector>
 
@@ -132,4 +135,10 @@ public:
 	afx_msg void OnEnChangeRfid();
 	CListCtrl m_listCheck;
 	CListCtrl m_listAnswer;
+
+	CDlgCheck m_page1; 
+	CDlgAnswer m_page2; 
+	CDlgOther m_page3; 
+	CTabCtrl m_tabctrl;
+	afx_msg void OnTcnSelchangeTab1(NMHDR *pNMHDR, LRESULT *pResult);
 };

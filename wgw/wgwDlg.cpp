@@ -368,9 +368,10 @@ void CwgwDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_MSCOMM1, m_ctrlComm);
-	DDX_Text(pDX, IDC_EDIT_OTHER, m_editOther);
-	DDX_Control(pDX, IDC_LIST_CHECK, m_listCheck);
-	DDX_Control(pDX, IDC_LIST_ANSWER, m_listAnswer);
+	//DDX_Text(pDX, IDC_EDIT_OTHER, m_editOther);
+	//DDX_Control(pDX, IDC_LIST_CHECK, m_listCheck);
+	//DDX_Control(pDX, IDC_LIST_ANSWER, m_listAnswer);
+	DDX_Control(pDX, IDC_TAB1, m_tabctrl);
 }
 
 BEGIN_MESSAGE_MAP(CwgwDlg, CDialogEx)
@@ -386,6 +387,7 @@ BEGIN_MESSAGE_MAP(CwgwDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_CHECKOFF, &CwgwDlg::OnBnClickedCheckoff)
 	ON_BN_CLICKED(IDC_TIMING, &CwgwDlg::OnBnClickedTiming)
 	ON_EN_CHANGE(IDC_RFID, &CwgwDlg::OnEnChangeRfid)
+	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB1, &CwgwDlg::OnTcnSelchangeTab1)
 END_MESSAGE_MAP()
 
 
@@ -441,7 +443,7 @@ BOOL CwgwDlg::OnInitDialog()
 	
 	OnBnClickedLink();
 	updateState();
-
+	/*
 	m_listCheck.InsertColumn(0,TEXT("序号"),LVCFMT_LEFT,60);              //添加列标题！！！！  这里的80,40,90用以设置列的宽度。！！！LVCFMT_LEFT用来设置对齐方式！！！
     m_listCheck.InsertColumn(1,TEXT("ID号"),LVCFMT_LEFT,100);
     m_listCheck.InsertColumn(2,TEXT("第一次收到时间"),LVCFMT_LEFT,140);
@@ -452,8 +454,37 @@ BOOL CwgwDlg::OnInitDialog()
     m_listAnswer.InsertColumn(1,TEXT("ID号"),LVCFMT_LEFT,100);
     m_listAnswer.InsertColumn(2,TEXT("答题信息"),LVCFMT_LEFT,140);
     m_listAnswer.InsertColumn(3,TEXT("答题时间"),LVCFMT_LEFT,140);
-    m_listAnswer.InsertColumn(4,TEXT("答题卡电量"),LVCFMT_LEFT,100);
+    m_listAnswer.InsertColumn(4,TEXT("答题卡电量"),LVCFMT_LEFT,100);*/
 	// TODO: 在此添加额外的初始化代码
+	TCITEM item;
+	item.mask = TCIF_TEXT;
+	item.pszText = TEXT("考勤");
+	m_tabctrl.InsertItem(0,&item);
+	item.pszText = TEXT("答题");
+	m_tabctrl.InsertItem(1, &item);
+	item.pszText = TEXT("其他");
+	m_tabctrl.InsertItem(2, &item);
+
+	CRect rect;
+	m_tabctrl.GetClientRect(&rect);
+	rect.top+=20;
+	rect.bottom-=4;
+	rect.left+=4;
+	rect.right-=4;
+
+	CWnd *p = GetDlgItem(IDC_TAB1);
+	m_page1.Create(IDD_DLG_CHECK, GetDlgItem(IDC_TAB1));
+	m_page2.Create(IDD_DLG_ANSWER, GetDlgItem(IDC_TAB1));
+	m_page3.Create(IDD_DLG_OTHER, GetDlgItem(IDC_TAB1));
+	m_page1.MoveWindow(&rect);
+	m_page2.MoveWindow(&rect);
+	m_page3.MoveWindow(&rect);
+
+	m_page1.ShowWindow(SW_SHOW);
+	m_page2.ShowWindow(SW_HIDE);
+	m_page3.ShowWindow(SW_HIDE);
+
+	m_tabctrl.SetCurSel(0);
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -801,4 +832,32 @@ void CwgwDlg::OnEnChangeRfid()
 
 	// TODO:  在此添加控件通知处理程序代码
 
+}
+
+
+void CwgwDlg::OnTcnSelchangeTab1(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	// TODO: 在此添加控件通知处理程序代码
+	int CurSel = m_tabctrl.GetCurSel();
+	switch(CurSel){
+		case 0:
+			m_page1.ShowWindow(SW_SHOW);
+			m_page2.ShowWindow(SW_HIDE);
+			m_page3.ShowWindow(SW_HIDE);
+			break;
+		case 1:
+			m_page1.ShowWindow(SW_HIDE);
+			m_page2.ShowWindow(SW_SHOW);
+			m_page3.ShowWindow(SW_HIDE);
+		case 2:
+			m_page1.ShowWindow(SW_HIDE);
+			m_page2.ShowWindow(SW_HIDE);
+			m_page3.ShowWindow(SW_SHOW);
+		break;
+		default:
+			break;
+	}
+
+	m_tabctrl.SetCurSel(CurSel);
+	*pResult = 0;
 }
