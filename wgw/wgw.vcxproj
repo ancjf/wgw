@@ -105,6 +105,7 @@
     <None Include="res\wgw.rc2" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="common.h" />
     <ClInclude Include="DlgAnswer.h" />
     <ClInclude Include="DlgCheck.h" />
     <ClInclude Include="DlgOther.h" />
@@ -120,6 +121,7 @@
     <ClInclude Include="wgwDlg.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="common.cpp" />
     <ClCompile Include="DlgAnswer.cpp" />
     <ClCompile Include="DlgCheck.cpp" />
     <ClCompile Include="DlgOther.cpp" />

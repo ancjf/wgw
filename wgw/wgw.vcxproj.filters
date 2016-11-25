@@ -63,6 +63,9 @@
     <ClInclude Include="DlgOther.h">
       <Filter>源文件</Filter>
     </ClInclude>
+    <ClInclude Include="common.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="wgw.cpp">
@@ -93,6 +96,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="DlgOther.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="common.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -476,15 +476,16 @@ BOOL CwgwDlg::OnInitDialog()
 	m_page1.Create(IDD_DLG_CHECK, GetDlgItem(IDC_TAB1));
 	m_page2.Create(IDD_DLG_ANSWER, GetDlgItem(IDC_TAB1));
 	m_page3.Create(IDD_DLG_OTHER, GetDlgItem(IDC_TAB1));
+
 	m_page1.MoveWindow(&rect);
 	m_page2.MoveWindow(&rect);
 	m_page3.MoveWindow(&rect);
 
-	m_page1.ShowWindow(SW_SHOW);
-	m_page2.ShowWindow(SW_HIDE);
+	m_page1.ShowWindow(SW_HIDE);
+	m_page2.ShowWindow(SW_SHOW);
 	m_page3.ShowWindow(SW_HIDE);
 
-	m_tabctrl.SetCurSel(0);
+	m_tabctrl.SetCurSel(1);
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -849,6 +850,7 @@ void CwgwDlg::OnTcnSelchangeTab1(NMHDR *pNMHDR, LRESULT *pResult)
 			m_page1.ShowWindow(SW_HIDE);
 			m_page2.ShowWindow(SW_SHOW);
 			m_page3.ShowWindow(SW_HIDE);
+			break;
 		case 2:
 			m_page1.ShowWindow(SW_HIDE);
 			m_page2.ShowWindow(SW_HIDE);
@@ -858,6 +860,6 @@ void CwgwDlg::OnTcnSelchangeTab1(NMHDR *pNMHDR, LRESULT *pResult)
 			break;
 	}
 
-	m_tabctrl.SetCurSel(CurSel);
+	//m_tabctrl.SetCurSel(CurSel);
 	*pResult = 0;
 }
