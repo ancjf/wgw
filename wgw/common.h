@@ -40,3 +40,6 @@ struct answerItem
 		memset(answer, 0, sizeof(answer));
 	}
 };
+
+unsigned chrVal(TCHAR c);
+unsigned chrMask();

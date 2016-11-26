@@ -41,29 +41,6 @@ TCHAR *CwgwDlg::getMsgStart(TCHAR *in, unsigned len)
 	return 0;
 }
 
-unsigned chrMask()
-{
-	unsigned mask = (unsigned)(-1);
-	switch(sizeof(TCHAR)){
-		case 1:
-			mask = 0xff;
-			break;
-		case 2:
-			mask = 0xffff;
-			break;
-		case 4:
-			mask = 0xffffffff;
-			break;
-	}
-
-	return mask;
-}
-
-unsigned chrVal(TCHAR c)
-{
-	return c&chrMask();
-}
-
 void CwgwDlg::msgAppend(CString &str, TCHAR *in, unsigned len)
 {
 	unsigned mask = chrMask();
@@ -232,10 +209,10 @@ int CwgwDlg::processMsgCheck(TCHAR *in)
 			c.lastTime = span.GetTotalSeconds();
 		}
 
-		return updateCheck(c);
+		return m_dlgCheck.updateCheck(&c);
 	}
 
-	return insertCheck(item);
+	return m_dlgCheck.insertCheck(&item);
 }
 
 int CwgwDlg::getMsgOne(TCHAR *in, unsigned len, CString &str)
@@ -248,14 +225,16 @@ int CwgwDlg::getMsgOne(TCHAR *in, unsigned len, CString &str)
 		case TEXT('\x2'):	//答题对
 			if(start + 18 > in + len)
 				return 0;
-			processMsgAnswer(in);
+			setOpenAnswerEd(true);
+			m_dlgAnswer.processMsgAnswer(in);
 			//msgAppend(m_editOther, start, 18);
 			//msgAppend(m_editAnswer, start, 18);
 			return (start - in) + 18;
 		case TEXT('\x5'):	//考勤
 			if(start + 13 > in + len)
 				return 0;
-			processMsgCheck(start);
+			setCheckOn(true);
+			m_dlgCheck.processMsgCheck(start);
 			//msgAppend(str, start, 13);
 			return (start - in) + 13;
 		case TEXT('\x4'):	//开考勤
@@ -271,7 +250,7 @@ int CwgwDlg::getMsgOne(TCHAR *in, unsigned len, CString &str)
 		case TEXT('\x7'):	//校时
 			if(start + 6 > in + len)
 				return 0;
-			msgAppend(m_editOther, start, 6);
+			m_dlgOther.msgAppend(start, 6);
 			return (start - in) + 6;
 		default:
 			return -1;
@@ -473,19 +452,19 @@ BOOL CwgwDlg::OnInitDialog()
 	rect.right-=4;
 
 	CWnd *p = GetDlgItem(IDC_TAB1);
-	m_page1.Create(IDD_DLG_CHECK, GetDlgItem(IDC_TAB1));
-	m_page2.Create(IDD_DLG_ANSWER, GetDlgItem(IDC_TAB1));
-	m_page3.Create(IDD_DLG_OTHER, GetDlgItem(IDC_TAB1));
+	m_dlgCheck.Create(IDD_DLG_CHECK, GetDlgItem(IDC_TAB1));
+	m_dlgAnswer.Create(IDD_DLG_ANSWER, GetDlgItem(IDC_TAB1));
+	m_dlgOther.Create(IDD_DLG_OTHER, GetDlgItem(IDC_TAB1));
 
-	m_page1.MoveWindow(&rect);
-	m_page2.MoveWindow(&rect);
-	m_page3.MoveWindow(&rect);
+	m_dlgCheck.MoveWindow(&rect);
+	m_dlgAnswer.MoveWindow(&rect);
+	m_dlgOther.MoveWindow(&rect);
 
-	m_page1.ShowWindow(SW_HIDE);
-	m_page2.ShowWindow(SW_SHOW);
-	m_page3.ShowWindow(SW_HIDE);
+	m_dlgCheck.ShowWindow(SW_SHOW);
+	m_dlgAnswer.ShowWindow(SW_HIDE);
+	m_dlgOther.ShowWindow(SW_HIDE);
 
-	m_tabctrl.SetCurSel(1);
+	m_tabctrl.SetCurSel(0);
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -842,19 +821,19 @@ void CwgwDlg::OnTcnSelchangeTab1(NMHDR *pNMHDR, LRESULT *pResult)
 	int CurSel = m_tabctrl.GetCurSel();
 	switch(CurSel){
 		case 0:
-			m_page1.ShowWindow(SW_SHOW);
-			m_page2.ShowWindow(SW_HIDE);
-			m_page3.ShowWindow(SW_HIDE);
+			m_dlgCheck.ShowWindow(SW_SHOW);
+			m_dlgAnswer.ShowWindow(SW_HIDE);
+			m_dlgOther.ShowWindow(SW_HIDE);
 			break;
 		case 1:
-			m_page1.ShowWindow(SW_HIDE);
-			m_page2.ShowWindow(SW_SHOW);
-			m_page3.ShowWindow(SW_HIDE);
+			m_dlgCheck.ShowWindow(SW_HIDE);
+			m_dlgAnswer.ShowWindow(SW_SHOW);
+			m_dlgOther.ShowWindow(SW_HIDE);
 			break;
 		case 2:
-			m_page1.ShowWindow(SW_HIDE);
-			m_page2.ShowWindow(SW_HIDE);
-			m_page3.ShowWindow(SW_SHOW);
+			m_dlgCheck.ShowWindow(SW_HIDE);
+			m_dlgAnswer.ShowWindow(SW_HIDE);
+			m_dlgOther.ShowWindow(SW_SHOW);
 		break;
 		default:
 			break;

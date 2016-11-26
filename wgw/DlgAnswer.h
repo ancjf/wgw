@@ -1,6 +1,11 @@
 #pragma once
 
+#include <map>
+#include <vector>
 
+using namespace std;
+
+#include "common.h"
 // CDlgAnswer ¶Ô»°¿ò
 
 class CDlgAnswer : public CDialogEx
@@ -19,7 +24,14 @@ protected:
 	virtual BOOL OnInitDialog(void);
 
 	DECLARE_MESSAGE_MAP()
-public:
+private:
+	vector<struct answerItem> m_answerVec;
 	CListCtrl m_listAnswer;
+
+public:
+	int insertAnswer(struct answerItem &item);
+	int updateAnswer(struct answerItem &item, int nindex);
+	int updateAnswer();
+	int processMsgAnswer(TCHAR *in);
 	
 };

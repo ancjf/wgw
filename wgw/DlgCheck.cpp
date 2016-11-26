@@ -1,4 +1,4 @@
-// DlgCheck.cpp : ÊµÏÖÎÄ¼þ
+ï»¿// DlgCheck.cpp : å®žçŽ°æ–‡ä»¶
 //
 
 #include "stdafx.h"
@@ -7,7 +7,7 @@
 #include "afxdialogex.h"
 
 
-// CDlgCheck ¶Ô»°¿ò
+// CDlgCheck å¯¹è¯æ¡†
 
 IMPLEMENT_DYNAMIC(CDlgCheck, CDialogEx)
 
@@ -32,17 +32,81 @@ BEGIN_MESSAGE_MAP(CDlgCheck, CDialogEx)
 END_MESSAGE_MAP()
 
 
-// CDlgCheck ÏûÏ¢´¦Àí³ÌÐò
+// CDlgCheck æ¶ˆæ¯å¤„ç†ç¨‹åº
 
 
 BOOL CDlgCheck::OnInitDialog(void)
 {	
 	CDialogEx::OnInitDialog();
 
-	m_listCheck.InsertColumn(0,TEXT("ÐòºÅ"),LVCFMT_LEFT,60);              //Ìí¼ÓÁÐ±êÌâ£¡£¡£¡£¡  ÕâÀïµÄ80,40,90ÓÃÒÔÉèÖÃÁÐµÄ¿í¶È¡££¡£¡£¡LVCFMT_LEFTÓÃÀ´ÉèÖÃ¶ÔÆë·½Ê½£¡£¡£¡
-    m_listCheck.InsertColumn(1,TEXT("IDºÅ"),LVCFMT_LEFT,100);
-    m_listCheck.InsertColumn(2,TEXT("µÚÒ»´ÎÊÕµ½Ê±¼ä"),LVCFMT_LEFT,140);
-    m_listCheck.InsertColumn(3,TEXT("×îºóÒ»´ÎÊÕµ½Ê±¼ä"),LVCFMT_LEFT,140);
-    m_listCheck.InsertColumn(4,TEXT("´ðÌâ¿¨µçÁ¿"),LVCFMT_LEFT,100);
+	m_listCheck.InsertColumn(0,TEXT("åºå·"),LVCFMT_LEFT,60);              //æ·»åŠ åˆ—æ ‡é¢˜ï¼ï¼ï¼ï¼  è¿™é‡Œçš„80,40,90ç”¨ä»¥è®¾ç½®åˆ—çš„å®½åº¦ã€‚ï¼ï¼ï¼LVCFMT_LEFTç”¨æ¥è®¾ç½®å¯¹é½æ–¹å¼ï¼ï¼ï¼
+    m_listCheck.InsertColumn(1,TEXT("IDå·"),LVCFMT_LEFT,100);
+    m_listCheck.InsertColumn(2,TEXT("ç¬¬ä¸€æ¬¡æ”¶åˆ°æ—¶é—´"),LVCFMT_LEFT,140);
+    m_listCheck.InsertColumn(3,TEXT("æœ€åŽä¸€æ¬¡æ”¶åˆ°æ—¶é—´"),LVCFMT_LEFT,140);
+    m_listCheck.InsertColumn(4,TEXT("ç­”é¢˜å¡ç”µé‡"),LVCFMT_LEFT,100);
 	return TRUE;
+}
+
+int CDlgCheck::updateCheck(const struct checkItem *item)
+{
+	CTime tm = CTime(0) + CTimeSpan(item->firstTime);
+	CString str = tm.Format(TEXT("%Y-%m-%d:%X"));
+	m_listCheck.SetItemText(item->nindex, 2, str);
+
+	tm = CTime(0) + CTimeSpan(item->lastTime);
+	str = tm.Format(TEXT("%Y-%m-%d:%X"));
+	m_listCheck.SetItemText(item->nindex, 3, str);
+
+	str.Format(TEXT("%d"), item->electricity);
+	m_listCheck.SetItemText(item->nindex, 4, str);
+	
+	return 0;
+}
+
+int CDlgCheck::insertCheck(struct checkItem *item)
+{
+	LV_ITEM    lvitemAdd = {0};
+	lvitemAdd.iItem = m_listCheck.GetItemCount();
+	if (m_listCheck.InsertItem(&lvitemAdd) == -1)
+		return -1;
+
+	item->nindex = lvitemAdd.iItem;
+
+	CString str;
+	str.Format(TEXT("%d"), item->nindex);
+
+	m_listCheck.SetItemText(item->nindex, 0, str);
+	m_listCheck.SetItemText(item->nindex, 1, item->id);
+	m_checkMap[CString(item->id)] = *item;
+	return updateCheck(item);
+}
+
+int CDlgCheck::processMsgCheck(TCHAR *in)
+{
+	struct checkItem item;
+	in += 3;
+	for(int i = 0; i<10; i++){
+		item.id[i] = TEXT('0') + in[i];
+		if(!_istdigit(item.id[i]))
+			item.id[i] = TEXT('F');
+	}
+
+	item.id[10] = 0;
+	item.electricity = in[10];
+
+	map<CString, struct checkItem>::iterator iter;
+	iter = m_checkMap.find(CString(item.id));
+	if(iter != m_checkMap.end()){
+		struct checkItem &c = iter->second;
+		CTimeSpan span = CTime::GetCurrentTime() - CTime(0);
+		if(!c.firstTime){
+			c.firstTime = span.GetTotalSeconds();
+		}else{
+			c.lastTime = span.GetTotalSeconds();
+		}
+
+		return updateCheck(&c);
+	}
+
+	return insertCheck(&item);
 }

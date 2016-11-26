@@ -100,9 +100,9 @@ public:
 	CListCtrl m_listCheck;
 	CListCtrl m_listAnswer;
 
-	CDlgCheck m_page1; 
-	CDlgAnswer m_page2; 
-	CDlgOther m_page3; 
+	CDlgCheck m_dlgCheck; 
+	CDlgAnswer m_dlgAnswer; 
+	CDlgOther m_dlgOther; 
 	CTabCtrl m_tabctrl;
 	afx_msg void OnTcnSelchangeTab1(NMHDR *pNMHDR, LRESULT *pResult);
 };

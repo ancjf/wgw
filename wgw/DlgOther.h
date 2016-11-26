@@ -1,6 +1,9 @@
 #pragma once
 
+#include <map>
+#include <vector>
 
+using namespace std;
 // CDlgOther 对话框
 
 class CDlgOther : public CDialogEx
@@ -18,6 +21,9 @@ protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
 
 	DECLARE_MESSAGE_MAP()
-public:
+private:
 	BOOL OnInitDialog(void);
+	CString m_editOther;
+public:
+	void CDlgOther::msgAppend(TCHAR *in, unsigned len);
 };

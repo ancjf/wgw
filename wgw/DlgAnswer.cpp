@@ -1,4 +1,4 @@
-// DlgAnswer.cpp : ÊµÏÖÎÄ¼ş
+ï»¿// DlgAnswer.cpp : å®ç°æ–‡ä»¶
 //
 
 #include "stdafx.h"
@@ -7,7 +7,7 @@
 #include "afxdialogex.h"
 
 
-// CDlgAnswer ¶Ô»°¿ò
+// CDlgAnswer å¯¹è¯æ¡†
 
 IMPLEMENT_DYNAMIC(CDlgAnswer, CDialogEx)
 
@@ -32,18 +32,114 @@ BEGIN_MESSAGE_MAP(CDlgAnswer, CDialogEx)
 END_MESSAGE_MAP()
 
 
-// CDlgAnswer ÏûÏ¢´¦Àí³ÌĞò
+// CDlgAnswer æ¶ˆæ¯å¤„ç†ç¨‹åº
 
 
 BOOL CDlgAnswer::OnInitDialog(void)
 {
 	CDialogEx::OnInitDialog();
 
-	m_listAnswer.InsertColumn(0,TEXT("ĞòºÅ"),LVCFMT_LEFT,60);              //Ìí¼ÓÁĞ±êÌâ£¡£¡£¡£¡  ÕâÀïµÄ80,40,90ÓÃÒÔÉèÖÃÁĞµÄ¿í¶È¡££¡£¡£¡LVCFMT_LEFTÓÃÀ´ÉèÖÃ¶ÔÆë·½Ê½£¡£¡£¡
-    m_listAnswer.InsertColumn(1,TEXT("IDºÅ"),LVCFMT_LEFT,100);
-    m_listAnswer.InsertColumn(2,TEXT("´ğÌâĞÅÏ¢"),LVCFMT_LEFT,140);
-    m_listAnswer.InsertColumn(3,TEXT("´ğÌâÊ±¼ä"),LVCFMT_LEFT,140);
-    m_listAnswer.InsertColumn(4,TEXT("´ğÌâ¿¨µçÁ¿"),LVCFMT_LEFT,100);
+	m_listAnswer.InsertColumn(0,TEXT("åºå·"),LVCFMT_LEFT,60);              //æ·»åŠ åˆ—æ ‡é¢˜ï¼ï¼ï¼ï¼  è¿™é‡Œçš„80,40,90ç”¨ä»¥è®¾ç½®åˆ—çš„å®½åº¦ã€‚ï¼ï¼ï¼LVCFMT_LEFTç”¨æ¥è®¾ç½®å¯¹é½æ–¹å¼ï¼ï¼ï¼
+    m_listAnswer.InsertColumn(1,TEXT("IDå·"),LVCFMT_LEFT,100);
+    m_listAnswer.InsertColumn(2,TEXT("ç­”é¢˜ä¿¡æ¯"),LVCFMT_LEFT,140);
+    m_listAnswer.InsertColumn(3,TEXT("ç­”é¢˜æ—¶é—´"),LVCFMT_LEFT,140);
+    m_listAnswer.InsertColumn(4,TEXT("ç­”é¢˜å¡ç”µé‡"),LVCFMT_LEFT,100);
 
 	return TRUE;
 }
+
+int CDlgAnswer::insertAnswer(struct answerItem &item)
+{
+	LV_ITEM    lvitemAdd = {0};
+	lvitemAdd.iItem = m_listAnswer.GetItemCount();
+	if (m_listAnswer.InsertItem(&lvitemAdd) == -1)
+		return -1;
+
+	m_listAnswer.SetItemData(lvitemAdd.iItem, lvitemAdd.iItem);
+	item.nindex = lvitemAdd.iItem;
+
+	CString str;
+	str.Format(TEXT("%d"), item.nindex);
+
+	m_listAnswer.SetItemText(item.nindex, 0, str);
+	m_listAnswer.SetItemText(item.nindex, 1, item.id);
+	m_listAnswer.SetItemText(item.nindex, 2, item.answer);
+
+	CTime tm = CTime(0) + CTimeSpan(item.time);
+	str = tm.Format(TEXT("%Y-%m-%d:%X"));
+	m_listAnswer.SetItemText(item.nindex, 3, str);
+
+	str.Format(TEXT("%d"), item.electricity);
+	m_listAnswer.SetItemText(item.nindex, 4, str);
+
+	//m_listAnswer.SortItems(MyCompareProc,(DWORD_PTR)&m_listAnswer);
+	m_answerVec.insert(m_answerVec.begin(), item);
+	updateAnswer();
+	return 0;
+}
+
+int CDlgAnswer::updateAnswer(struct answerItem &item, int nindex)
+{
+	CString str;
+	str.Format(TEXT("%d"), item.nindex);
+
+	m_listAnswer.SetItemText(nindex, 0, str);
+	m_listAnswer.SetItemText(nindex, 1, item.id);
+	m_listAnswer.SetItemText(nindex, 2, item.answer);
+
+	CTime tm = CTime(0) + CTimeSpan(item.time);
+	str = tm.Format(TEXT("%Y-%m-%d:%X"));
+	m_listAnswer.SetItemText(nindex, 3, str);
+
+	str.Format(TEXT("%d"), item.electricity);
+	m_listAnswer.SetItemText(nindex, 4, str);
+
+	return 0;
+}
+
+int CDlgAnswer::updateAnswer()
+{
+	int i = 0;
+	vector<struct answerItem>::iterator it;
+	for(it=m_answerVec.begin(); it!=m_answerVec.end();it++){
+		updateAnswer(*it, i++);
+	}
+
+	return 0;
+}
+
+int CDlgAnswer::processMsgAnswer(TCHAR *in)
+{
+	struct answerItem item;
+	in += 3;
+	for(int i = 0; i<10; i++){
+		item.id[i] = TEXT('0') + in[i];
+		if(!_istdigit(item.id[i]))
+			item.id[i] = TEXT('F');
+	}
+
+	item.electricity = in[10];
+
+	if(in[11] == TEXT('\x1')){
+		_tcscpy(item.answer, TEXT("yes"));
+	}else if(in[11] == TEXT('\x2')){
+		_tcscpy(item.answer, TEXT("no"));
+	}else{
+		for(int i = 0; i<4; i++){
+			TCHAR chr = (((in[11+i]&0xf0)>>4)-10)+TEXT('A');
+			if(!_istalpha(chr)){
+				break;
+			}
+			item.answer[2*i] = chr;
+			chr = ((in[11+i]&0xf)-10)+TEXT('A');
+			if(!_istalpha(chr))
+				break;
+			item.answer[2*i+1] = chr;
+		}
+	}
+
+	CTimeSpan span = CTime::GetCurrentTime() - CTime(0);
+	item.time = span.GetTotalSeconds();
+	return insertAnswer(item);
+}
+

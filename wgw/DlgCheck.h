@@ -1,7 +1,12 @@
 #pragma once
 
+#include <map>
+#include <vector>
 
+using namespace std;
 // CDlgCheck ¶Ô»°¿ò
+
+#include "common.h"
 
 class CDlgCheck : public CDialogEx
 {
@@ -20,5 +25,10 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
+	int insertCheck(struct checkItem *item);
+	int updateCheck(const struct checkItem *item);
+	int processMsgCheck(TCHAR *in);
+private:
 	CListCtrl m_listCheck;
+	map<CString, struct checkItem> m_checkMap;
 };
