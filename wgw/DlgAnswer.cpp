@@ -51,30 +51,30 @@ BOOL CDlgAnswer::OnInitDialog(void)
 int CDlgAnswer::insertAnswer(struct answerItem &item)
 {
 	LV_ITEM    lvitemAdd = {0};
-	lvitemAdd.iItem = m_listAnswer.GetItemCount();
+	lvitemAdd.iItem = 0;//m_listAnswer.GetItemCount();
 	if (m_listAnswer.InsertItem(&lvitemAdd) == -1)
 		return -1;
 
 	m_listAnswer.SetItemData(lvitemAdd.iItem, lvitemAdd.iItem);
-	item.nindex = lvitemAdd.iItem;
+	item.nindex = m_listAnswer.GetItemCount() -1 ;//lvitemAdd.iItem;
 
 	CString str;
 	str.Format(TEXT("%d"), item.nindex);
 
-	m_listAnswer.SetItemText(item.nindex, 0, str);
-	m_listAnswer.SetItemText(item.nindex, 1, item.id);
-	m_listAnswer.SetItemText(item.nindex, 2, item.answer);
+	m_listAnswer.SetItemText(lvitemAdd.iItem, 0, str);
+	m_listAnswer.SetItemText(lvitemAdd.iItem, 1, item.id);
+	m_listAnswer.SetItemText(lvitemAdd.iItem, 2, item.answer);
 
 	CTime tm = CTime(0) + CTimeSpan(item.time);
 	str = tm.Format(TEXT("%Y-%m-%d:%X"));
-	m_listAnswer.SetItemText(item.nindex, 3, str);
+	m_listAnswer.SetItemText(lvitemAdd.iItem, 3, str);
 
 	str.Format(TEXT("%d"), item.electricity);
-	m_listAnswer.SetItemText(item.nindex, 4, str);
+	m_listAnswer.SetItemText(lvitemAdd.iItem, 4, str);
 
 	//m_listAnswer.SortItems(MyCompareProc,(DWORD_PTR)&m_listAnswer);
 	m_answerVec.insert(m_answerVec.begin(), item);
-	updateAnswer();
+	//updateAnswer();
 	return 0;
 }
 

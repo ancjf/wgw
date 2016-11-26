@@ -15,12 +15,12 @@ extern "C" {
 #include "hidsdi.h" 
 }
 
-//#define USB_VID 0x1A86
-//#define USB_PID 0xE010
+#define USB_VID 0x1A86
+#define USB_PID 0xE010
 
 
-#define USB_VID 0xFFFF
-#define USB_PID 0x0035
+//#define USB_VID 0xFFFF
+//#define USB_PID 0x0035
 
 HANDLE OpenMyHIDDevice(int overlapped);
 LPVOID lpMsgBuf;

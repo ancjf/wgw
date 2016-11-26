@@ -226,7 +226,8 @@ int CwgwDlg::getMsgOne(TCHAR *in, unsigned len, CString &str)
 			if(start + 18 > in + len)
 				return 0;
 			setOpenAnswerEd(true);
-			m_dlgAnswer.processMsgAnswer(in);
+			m_dlgAnswer.processMsgAnswer(start);
+			//m_dlgOther.msgAppend(start, 6);
 			//msgAppend(m_editOther, start, 18);
 			//msgAppend(m_editAnswer, start, 18);
 			return (start - in) + 18;

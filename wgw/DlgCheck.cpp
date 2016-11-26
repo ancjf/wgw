@@ -93,6 +93,10 @@ int CDlgCheck::processMsgCheck(TCHAR *in)
 
 	item.id[10] = 0;
 	item.electricity = in[10];
+	if(item.electricity > 5)
+		item.electricity = 6;
+	if(item.electricity < 0)
+		item.electricity = 6;
 
 	map<CString, struct checkItem>::iterator iter;
 	iter = m_checkMap.find(CString(item.id));
