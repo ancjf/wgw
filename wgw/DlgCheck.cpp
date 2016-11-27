@@ -103,10 +103,14 @@ int CDlgCheck::processMsgCheck(TCHAR *in)
 	if(iter != m_checkMap.end()){
 		struct checkItem &c = iter->second;
 		CTimeSpan span = CTime::GetCurrentTime() - CTime(0);
+		uint64_t t = span.GetTotalSeconds();
+		if(t == c.lastTime)
+			return 0;
+
 		if(!c.firstTime){
-			c.firstTime = span.GetTotalSeconds();
+			c.firstTime = t;
 		}else{
-			c.lastTime = span.GetTotalSeconds();
+			c.lastTime = t;
 		}
 
 		return updateCheck(&c);
