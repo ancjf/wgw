@@ -438,18 +438,18 @@ BOOL CwgwDlg::OnInitDialog()
 	// TODO: 在此添加额外的初始化代码
 	TCITEM item;
 	item.mask = TCIF_TEXT;
-	item.pszText = TEXT("考勤");
+	item.pszText = TEXT("考勤 ");
 	m_tabctrl.InsertItem(0,&item);
-	item.pszText = TEXT("答题");
+	item.pszText = TEXT("答题 ");
 	m_tabctrl.InsertItem(1, &item);
-	item.pszText = TEXT("其他");
+	item.pszText = TEXT("其他 ");
 	m_tabctrl.InsertItem(2, &item);
 
 	CRect rect;
 	m_tabctrl.GetClientRect(&rect);
-	rect.top+=20;
+	rect.top+=23;
 	rect.bottom-=4;
-	rect.left+=4;
+	rect.left+=3;
 	rect.right-=4;
 
 	CWnd *p = GetDlgItem(IDC_TAB1);

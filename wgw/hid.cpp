@@ -77,10 +77,9 @@ bool write(HANDLE hComm)
 }
 
 
-bool read(HANDLE hComm)
+int read(HANDLE hComm, unsigned char *buf, unsigned size, unsigned timeout)
 {
     DWORD dwRead;
-    BOOL fWaitingOnRead = FALSE;
     OVERLAPPED osReader = {0};
     memset(lpBuf, 0, 8);//数组清零
     // Create the overlapped event. Must be closed before exiting
@@ -88,91 +87,90 @@ bool read(HANDLE hComm)
     osReader.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (osReader.hEvent == NULL) {
         // Error creating overlapped event; abort.
-        return false;
+        return -1;
     }
-    if (!fWaitingOnRead) {
-        // Issue read operation.
-        if (!ReadFile(hComm, lpBuf, 8, &dwRead, &osReader)) {
-            // error;//错误查询
-            if (GetLastError() != ERROR_IO_PENDING) { // read not delayed?
-                // Error in communications; report it.
-            } else {
-                fWaitingOnRead = TRUE;
-            }
+
+    if (!ReadFile(hComm, buf, size, &dwRead, &osReader)) {
+        // error;//错误查询
+        if (GetLastError() != ERROR_IO_PENDING) { // read not delayed?
+            // Error in communications; report it.
+			return -1;
+        }
+    } else {
+        // read completed immediately
+        //HandleASuccessfulRead(buf, dwRead);
+		return dwRead;
+    }
+
+	if(!timeout){
+		CloseHandle(osReader.hEvent);
+		return -1;
+	}
+
+	dwRead = -1;
+    DWORD dwRes = WaitForSingleObject(osReader.hEvent, timeout);
+    switch(dwRes) {
+    // Read completed.
+    case WAIT_OBJECT_0:
+        if (!GetOverlappedResult(hComm, &osReader, &dwRead, FALSE)) {
+            // Error in communications; report it.
         } else {
-            // read completed immediately
-            // HandleASuccessfulRead(lpBuf, dwRead);
+            // Read completed successfully.
+            //HandleASuccessfulRead(lpBuf, dwRead);
+			//return dwRead;
         }
+        // Reset flag so that another opertion can be issued.
+        break;
+    case WAIT_TIMEOUT:
+        // Operation isn't complete yet. fWaitingOnRead flag isn't
+        // changed since I'll loop back around, and I don't want
+        // to issue another read until the first one finishes.
+        //
+        // This is a good time to do some background work.
+        break;
+    default:
+        // Error in the WaitForSingleObject; abort.
+        // This indicates a problem with the OVERLAPPED structure's
+        // event handle.
+        break;
     }
-    if (fWaitingOnRead) {
-#define READ_TIMEOUT 500 // milliseconds
-        DWORD dwRes = WaitForSingleObject(osReader.hEvent, READ_TIMEOUT);
-        switch(dwRes) {
-        // Read completed.
-        case WAIT_OBJECT_0:
-            if (!GetOverlappedResult(hComm, &osReader, &dwRead, FALSE)) {
-                // Error in communications; report it.
-            } else {
-                // Read completed successfully.
-                //HandleASuccessfulRead(lpBuf, dwRead);
-            }
-            // Reset flag so that another opertion can be issued.
-            fWaitingOnRead = false;
-            break;
-        case WAIT_TIMEOUT:
-            // Operation isn't complete yet. fWaitingOnRead flag isn't
-            // changed since I'll loop back around, and I don't want
-            // to issue another read until the first one finishes.
-            //
-            // This is a good time to do some background work.
-            break;
-        default:
-            // Error in the WaitForSingleObject; abort.
-            // This indicates a problem with the OVERLAPPED structure's
-            // event handle.
-            break;
-        }
-    }
-    return true;
+
+	CloseHandle(osReader.hEvent);
+    return dwRead;
 }
 void HIDSampleFunc()
 {
-    HANDLE hDev;
-    hDev = OpenMyHIDDevice(1); //打开设备，使用重叠（异步）方式;
+    HANDLE hDev = OpenMyHIDDevice(1); //打开设备，使用重叠（异步）方式;
     printf("传递设备句柄:%x\n", hDev);
-    if (hDev == INVALID_HANDLE_VALUE)
+    if (hDev == INVALID_HANDLE_VALUE){
+		::MessageBox(0, TEXT("设备不存在"), TEXT("标题"), MB_OKCANCEL);
         return;
-    /*//不使用异步方式的时候的代码
-    // BYTE recvDataBuf[8];
-    // BYTE reportBuf[8];
-    // DWORD bytes;
-    memset(reportBuf, 0, 8);//数组清零
-    reportBuf[0] = 4; //输出报告的报告ID是4
-    reportBuf[1] = 1;
-    if (!WriteFile(hDev,// 设备句柄，即 CreateFile 的返回值
-    reportBuf,// 存有待发送数据的 buffer
-    8, // 待发送数据的长度
-    &bytes, // 实际收到的数据的字节数
-    0// 异步模式
-    )) //写入数据到设备
-    {
+	}
 
-    return;}
-    // Sleep(1500);
-    printf("开始接收");
-    ReadFile(hDev, recvDataBuf, 8, &bytes, NULL); //读取设备发给主机的数
-    printf("结束");
-    */
-    for(int i = 0; i < 8; i++) {
+	unsigned char buf[128] = {0};
+	char test[512] = {0};
+	int err = 0;
+
+    for(int i = 0; i < 24; i++) {
         printf("开始写入\n");
-        write(hDev);
+        //write(hDev);
         printf("开始接收\n");
-        read(hDev);//error;//错误查询
-        for(int i = 0; i < 8; i++) {
-            printf("%x ", lpBuf[i]);
-        }
-        printf("结束\n");
+        err = read(hDev, buf, sizeof(buf), 100);//error;//
+
+		if(err>0){
+			printf("%x \n", err);
+			//::MessageBox(0, TEXT("接收到数据"), TEXT("标题"), MB_OKCANCEL);
+		
+			for(int i = 0; i < err; i++) {
+				sprintf(test+i*2, "%02x", buf[i]);
+			}
+
+			printf("结束\n");
+		}
+        
     }
+
+	CloseHandle(hDev);
 }
 
 
@@ -221,7 +219,8 @@ HANDLE OpenMyHIDDevice(int overlapped)
             }
             /*----------------------该处为vid-pid-guid的比较后作出标志位------------*/
             char vidpidguid[30];
-            sprintf(vidpidguid, "%s", "\\\\?\\hid#vid_16c0&pid_05e1#"); //“\\”为转移字符，要改成这样
+            //sprintf(vidpidguid, "%s", "\\\\?\\hid#vid_16c0&pid_05e1#"); //“\\”为转移字符，要改成这样
+			sprintf(vidpidguid, "\\\\?\\hid#vid_%04x&pid_%04x#", USB_VID, USB_PID); //“\\”为转移字符，要改成这样
             int hidcheck = 0;
             for(int i = 0 ; i < 25; i++) {
                 if(devDetail->DevicePath[i] == vidpidguid[i]) {
