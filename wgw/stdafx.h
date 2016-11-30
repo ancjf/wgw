@@ -44,6 +44,7 @@
 #include "common.h"
 
 #define WM_USER_THREADEND WM_USER + 10
+#define DEBUG_TEST 1
 
 #ifdef _UNICODE
 #if defined _M_IX86

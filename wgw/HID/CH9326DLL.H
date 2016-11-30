@@ -61,8 +61,8 @@ void        WINAPI CH9326GetHidGuid (void *   HidGuid);
 
 // 根据设备的VID/PID来打开设备
 // CH9326OpenDevice成功返回设备句柄，失败返回INVALID_HANDLE_VALUE
-HANDLE		WINAPI	CH9326OpenDevice(	unsigned short USB_VID,		        //设备的VID
-				        unsigned short USB_PID 								//设备的PID
+HANDLE		WINAPI	CH9326OpenDevice(	unsigned short vid,		        //设备的VID
+				        unsigned short pid 								//设备的PID
 				        ); 
 				        
 // 根据设备链接名来打开设备

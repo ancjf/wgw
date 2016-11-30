@@ -23,11 +23,10 @@ extern "C" {
 #include "hidsdi.h" 
 }
 
-//#define USB_VID 0x1A86
-//#define USB_PID 0xE010
 
-#define USB_VID 0x093A
-#define USB_PID 0x2510
+
+//#define USB_VID 0x093A
+//#define USB_PID 0x2510
 
 //#define USB_VID 0xFFFF
 //#define USB_PID 0x0035
@@ -82,6 +81,9 @@ struct readData
 	unsigned len;
 
 	HWND hand;
+
+	unsigned inportlen;
+	unsigned outportlen;
 };
 
 
@@ -107,6 +109,7 @@ int processMsg(struct readData *data, char *start, unsigned len)
 		return (start - data->buf) + len;
 
 	//::PostMessage(GetSafeHwnd(), WM_USER_THREADEND, 0, 0);
+	//CWnd *pMainWnd = AfxGetMainWnd();pMainWnd->m_hWnd
 	::PostMessage(data->hand, WM_USER_THREADEND, (WPARAM)p, len);
 	return (start - data->buf) + len;
 }
@@ -177,29 +180,43 @@ UINT  ReadThreadFunction(LPVOID lpParameter)
 {
 	struct readThreadData *threaddata = (struct readThreadData *)lpParameter;
 
-	char buf[1024];
-	char databuf[1024];
-	struct readData data;
-	data.buf = databuf;
-	data.size = sizeof(databuf);
+	char buf[128];
+	struct readData data;	
+	data.size = 1024;
+	data.buf = (char*)malloc(data.size);
+	ASSERT(data.buf);
 	data.len  = 0;
 	data.hand = threaddata->hWnd;
+	data.inportlen = threaddata->inportlen;
+	if(data.inportlen > sizeof(buf))
+		data.inportlen = sizeof(buf);
+	data.outportlen = threaddata->outportlen;
 
 	threaddata->run++;
 	while(threaddata->run > 0){
-		ULONG len = sizeof(buf);
-		if(!CH9326ReadThreadData(threaddata->hCom, data.buf, &len) ) 
-			break;
+		ULONG len = data.inportlen;
+		if(!CH9326ReadThreadData(threaddata->hCom, data.buf, &len) ) {
+			Sleep(100);
+			continue;
+		}
 
-		addInput(&data, buf, len);
+		if(len)
+			addInput(&data, buf, len);
 	}
 
 	threaddata->run = -1;
+	free(data.buf);
+	//AfxEndThread(0);
 	return 0;
 }
 
 int HIDStartRead(struct readThreadData *threaddata)
-{
+{/*
+	threaddata->run = 0;
+	while(threaddata->run >= 0)
+		Sleep(100);*/
+
+	threaddata->run = 1;
 	threaddata->thread = AfxBeginThread(ReadThreadFunction,threaddata, THREAD_PRIORITY_NORMAL,0,0,NULL); 
 	return 0;
 }
@@ -320,7 +337,8 @@ int HIDClose(struct readThreadData *data)
 	CH9326CloseDevice(data->hCom);
 
 	data->run = 0;
-	while(data->run == 0);
+	while(data->run >= 0);
+		Sleep(100);
 
 	data->hCom = INVALID_HANDLE_VALUE;
 	return 0;

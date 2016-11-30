@@ -15,6 +15,11 @@
 #define new DEBUG_NEW
 #endif
 
+extern "C" {  
+#include "setupapi.h" 
+#include "hidsdi.h" 
+}
+
 #pragma comment(lib, "setupapi.lib") 
 #pragma comment(lib, "CH9326DLL.lib") 
 
@@ -530,6 +535,8 @@ HCURSOR CwgwDlg::OnQueryDragIcon()
 
 bool CwgwDlg::comOpened()
 {
+	return m_commOpened;
+
 	if(!m_ctrlComm.get_PortOpen()){
 		MessageBox(TEXT("串口没打开"));
 		updateState();
@@ -557,11 +564,11 @@ END_EVENTSINK_MAP()
 
 void CwgwDlg::addInString(TCHAR *str, long size)
 {
-	CString debug;
+	//CString debug;
 
 	ASSERT(size > 0);
 
-	msgAppend(debug, str, size);
+	//msgAppend(debug, str, size);
 	m_dataLen += size;
 	if(m_dataLen >= ARRAY_SIZE(m_buffer)){
 		m_dataLen = 0;
@@ -634,9 +641,20 @@ void InitSelDev(CComboBox *CCombox)
 					deviceNo++;
 					continue;
 				}
+				
+#if DEBUG_TEST
+				_HIDD_ATTRIBUTES hidAttributes;
+				if(!HidD_GetAttributes(hHID, &hidAttributes)) {
+					CloseHandle(hHID);
+					continue;
+				}
+
+				if (USB_VID != hidAttributes.VendorID || USB_PID != hidAttributes.ProductID) {
+					continue;
+				}
+#endif
 				CharUpperBuff(buf,strlen(buf));
 				CCombox->InsertString(0,(const char *)buf);
-
 				CloseHandle(hHID);
 				
 			}
@@ -678,12 +696,13 @@ void CwgwDlg::OnBnClickedOpen()
 	CString text;
 	GetDlgItemText(IDC_OPEN, text);
 	if(text != TEXT("打开")){
-		if(threadData.hCom == INVALID_HANDLE_VALUE){
+		if(threadData.hCom != INVALID_HANDLE_VALUE){
 			HIDClose(&threadData);
 		}else{
 			m_ctrlComm.put_PortOpen(false);
 		}
 
+		m_commOpened = false;
 		SetDlgItemText(IDC_OPEN, TEXT("打开"));
 		m_comStateStr = TEXT("串口未打开");
 		updateState();
@@ -704,7 +723,7 @@ void CwgwDlg::OnBnClickedOpen()
 	CString speed;
 	GetDlgItemText(IDC_SPEED, speed);
 
-
+	m_commOpened = true;
 	CString strPortName;
 	((CComboBox*)GetDlgItem(IDC_COMLIST))->GetWindowText(strPortName);
 	int index = strPortName.Find(TEXT("com"));
@@ -721,6 +740,8 @@ void CwgwDlg::OnBnClickedOpen()
 		*/
 		m_comStateStr.Format(TEXT("hid,speed:"));
 		m_comStateStr += speed;
+		SetDlgItemText(IDC_OPEN, TEXT("关闭"));
+		updateState();
 		return;
 	}
 
@@ -848,7 +869,7 @@ void CwgwDlg::updateState()
 	WriteProfileString(TEXT("wgw"), TEXT("id"), id);
 	//WritePrivateProfileString(TEXT("wgw"), TEXT("id"), id, TEXT(".\\info.ini"));
 
-	if(!m_ctrlComm.get_PortOpen()){
+	if(!comOpened()){
 		SetWindowText(m_comStateStr);
 		return;
 	}

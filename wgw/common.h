@@ -54,3 +54,6 @@ struct readThreadData
 
 unsigned chrVal(TCHAR c);
 unsigned chrMask();
+
+#define USB_VID 0x1A86
+#define USB_PID 0xE010
