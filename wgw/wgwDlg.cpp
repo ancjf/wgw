@@ -232,12 +232,12 @@ int CwgwDlg::getMsgOne(TCHAR *in, unsigned len, CString &str)
 			//msgAppend(m_editAnswer, start, 18);
 			return (start - in) + 18;
 		case TEXT('\x5'):	//考勤
-			if(start + 13 > in + len)
+			if(start + 14 > in + len)
 				return 0;
 			setCheckOn(true);
 			m_dlgCheck.processMsgCheck(start);
 			//msgAppend(str, start, 13);
-			return (start - in) + 13;
+			return (start - in) + 14;
 		case TEXT('\x4'):	//开考勤
 		case TEXT('\x6'):	//关考勤
 			setCheckOn(start[2] == TEXT('\x4'));

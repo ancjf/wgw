@@ -10,14 +10,21 @@
 #include <cfgmgr32.h>
 #include <time.h>
 
+#include <vector>
+#include "hid.h"
+
+using namespace std;
+
 extern "C" {  
 #include "setupapi.h" 
 #include "hidsdi.h" 
 }
 
-#define USB_VID 0x1A86
-#define USB_PID 0xE010
+//#define USB_VID 0x1A86
+//#define USB_PID 0xE010
 
+#define USB_VID 0x093A
+#define USB_PID 0x2510
 
 //#define USB_VID 0xFFFF
 //#define USB_PID 0x0035
@@ -29,55 +36,16 @@ LPVOID lpMsgBuf;
 /*---------------------------------------------*/
 BYTE lpBuf[8];
 
-bool write(HANDLE hComm)
+int HIDWrite(HANDLE hComm, const char *buf, unsigned len, unsigned timeout)
 {
-    OVERLAPPED osWrite = {0};
-    DWORD dwWritten;
-    BOOL fRes;
-    memset(lpBuf, 0, 8);//数组清零
-    lpBuf[0] = 2;
-    lpBuf[1] = 4;
-    // Create this writes OVERLAPPED structure hEvent.
-    osWrite.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (osWrite.hEvent == NULL)
-        // Error creating overlapped event handle.
-        return false;
-    // Issue write.
-    if (!WriteFile(hComm, lpBuf, 8, &dwWritten, &osWrite)) {
-        if (GetLastError() != ERROR_IO_PENDING) {
-            // WriteFile failed, but it isn't delayed. Report error and abort.
-            fRes = false;
-        } else {
-            // Write is pending.
-#define WRITE_TIMEOUT 500 //write timeout
-            DWORD dwRes = WaitForSingleObject(osWrite.hEvent, WRITE_TIMEOUT);
-            switch(dwRes) {
-            // Read completed.
-            case WAIT_OBJECT_0:
-                if (!GetOverlappedResult(hComm, &osWrite, &dwWritten, TRUE))
-                    fRes = FALSE;
-                else
-                    // Write operation completed successfully.
-                    fRes = true;
-            case WAIT_TIMEOUT:
-                // This is a good time to do some background work.
-                break;
-            default:
-                // Error in the WaitForSingleObject; abort.
-                // This indicates a problem with the OVERLAPPED structure's
-                // event handle.
-                break;
-            }
-        }
-    } else
-        // WriteFile completed immediately.
-        fRes = true;
-    CloseHandle(osWrite.hEvent);
-    return fRes;
+	DWORD dwWritten;
+	if(WriteFile(hComm, buf, len, &dwWritten, 0))
+		return dwWritten;
+
+	return -1;
 }
 
-
-int read(HANDLE hComm, unsigned char *buf, unsigned size, unsigned timeout)
+int HIDRead(HANDLE hComm, char *buf, unsigned size, unsigned timeout)
 {
     DWORD dwRead;
     OVERLAPPED osReader = {0};
@@ -138,24 +106,92 @@ int read(HANDLE hComm, unsigned char *buf, unsigned size, unsigned timeout)
 	CloseHandle(osReader.hEvent);
     return dwRead;
 }
+
+HANDLE HIDOpen(CString name)
+{
+	return CreateFile(name.GetBuffer(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE, (LPSECURITY_ATTRIBUTES)NULL, OPEN_EXISTING, 0, NULL);
+}
+
+void HIDSearch(vector<CString> &vstr)
+{
+    HANDLE hidHandle;
+    GUID hidGuid;
+    HidD_GetHidGuid(&hidGuid);
+    HDEVINFO hDevInfo = SetupDiGetClassDevs(&hidGuid, NULL, NULL, (DIGCF_PRESENT | DIGCF_DEVICEINTERFACE));
+    if (hDevInfo == INVALID_HANDLE_VALUE) {
+        return;
+    }
+
+    SP_DEVICE_INTERFACE_DATA devInfoData;
+    devInfoData.cbSize = sizeof (SP_DEVICE_INTERFACE_DATA);
+    int deviceNo = 0;
+    SetLastError(NO_ERROR);
+    while (SetupDiEnumInterfaceDevice (hDevInfo, 0, &hidGuid, deviceNo, &devInfoData)) {
+
+        ULONG requiredLength = 0;
+        SetupDiGetInterfaceDeviceDetail(hDevInfo, &devInfoData, NULL, 0, &requiredLength, NULL);
+
+        PSP_INTERFACE_DEVICE_DETAIL_DATA devDetail = (SP_INTERFACE_DEVICE_DETAIL_DATA *) malloc (requiredLength);
+        devDetail->cbSize = sizeof(SP_INTERFACE_DEVICE_DETAIL_DATA);
+
+        if(!SetupDiGetInterfaceDeviceDetail(hDevInfo, &devInfoData, devDetail, requiredLength, NULL, NULL)) {
+            free(devDetail);
+            SetupDiDestroyDeviceInfoList(hDevInfo);
+            return;
+        }
+
+		hidHandle = CreateFile(devDetail->DevicePath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, (LPSECURITY_ATTRIBUTES)NULL, OPEN_EXISTING, 0, NULL);
+        
+        if (hidHandle == INVALID_HANDLE_VALUE) {
+            SetupDiDestroyDeviceInfoList(hDevInfo);
+            free(devDetail);
+            return;
+        }
+
+        printf("打开成功\n");
+        _HIDD_ATTRIBUTES hidAttributes;
+        if(!HidD_GetAttributes(hidHandle, &hidAttributes)) {
+            CloseHandle(hidHandle);
+            SetupDiDestroyDeviceInfoList(hDevInfo);
+			free(devDetail);
+            return;
+        }
+
+        if (USB_VID == hidAttributes.VendorID && USB_PID == hidAttributes.ProductID) {
+            printf("找到设备!\n");
+			vstr.push_back(devDetail->DevicePath);
+        }
+
+		free(devDetail);
+        CloseHandle(hidHandle);
+		++deviceNo;
+    }
+}
+
+
 void HIDSampleFunc()
 {
-    HANDLE hDev = OpenMyHIDDevice(1); //打开设备，使用重叠（异步）方式;
-    printf("传递设备句柄:%x\n", hDev);
-    if (hDev == INVALID_HANDLE_VALUE){
+	vector<CString> vstr;
+	HIDSearch(vstr);
+	if (0 == vstr.size()){
 		::MessageBox(0, TEXT("设备不存在"), TEXT("标题"), MB_OKCANCEL);
         return;
 	}
 
-	unsigned char buf[128] = {0};
+    HANDLE hDev = HIDOpen(vstr[0]); //打开设备，使用重叠（异步）方式;
+    printf("传递设备句柄:%x\n", hDev);
+    if (hDev == INVALID_HANDLE_VALUE){
+		::MessageBox(0, TEXT("打开设备失败"), TEXT("标题"), MB_OKCANCEL);
+        return;
+	}
+
+	char buf[128] = {0};
 	char test[512] = {0};
 	int err = 0;
 
     for(int i = 0; i < 24; i++) {
-        printf("开始写入\n");
-        //write(hDev);
-        printf("开始接收\n");
-        err = read(hDev, buf, sizeof(buf), 100);//error;//
+
+        err = HIDRead(hDev, buf, sizeof(buf), 100);//error;//
 
 		if(err>0){
 			printf("%x \n", err);
@@ -173,6 +209,15 @@ void HIDSampleFunc()
 	CloseHandle(hDev);
 }
 
+int _tmain_1(int argc, _TCHAR *argv[])
+{
+    HIDSampleFunc();
+    // MessageBox(NULL,(LPCTSTR)lpMsgBuf, _T("Error"), MB_OK | MB_ICONINFORMATION );
+    // Free the buffer.
+    // LocalFree( lpMsgBuf );
+    system("PAUSE");
+    return 0;
+}
 
 HANDLE OpenMyHIDDevice(int overlapped)
 {
@@ -278,7 +323,7 @@ HANDLE OpenMyHIDDevice(int overlapped)
             free(devDetail);
             if (hidHandle == INVALID_HANDLE_VALUE) {
                 SetupDiDestroyDeviceInfoList(hDevInfo);
-                free(devDetail);
+                //free(devDetail);
                 return INVALID_HANDLE_VALUE;
             }
             printf("打开成功\n");
@@ -300,17 +345,5 @@ HANDLE OpenMyHIDDevice(int overlapped)
     }
     SetupDiDestroyDeviceInfoList(hDevInfo);
     return hidHandle;
-}
-
-
-
-int _tmain_1(int argc, _TCHAR *argv[])
-{
-    HIDSampleFunc();
-    // MessageBox(NULL,(LPCTSTR)lpMsgBuf, _T("Error"), MB_OK | MB_ICONINFORMATION );
-    // Free the buffer.
-    // LocalFree( lpMsgBuf );
-    system("PAUSE");
-    return 0;
 }
 

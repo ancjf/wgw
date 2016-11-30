@@ -85,7 +85,9 @@ int CDlgCheck::processMsgCheck(TCHAR *in)
 {
 	struct checkItem item;
 	in += 3;
+	int checkcode = 0;
 	for(int i = 0; i<10; i++){
+		checkcode += in[i];
 		item.id[i] = TEXT('0') + in[i];
 		if(!_istdigit(item.id[i]))
 			item.id[i] = TEXT('F');
@@ -97,6 +99,10 @@ int CDlgCheck::processMsgCheck(TCHAR *in)
 		item.electricity = 6;
 	if(item.electricity < 0)
 		item.electricity = 6;
+
+	if(checkcode != in[11]){
+		_tcscpy(item.id, TEXT("CHECKCODEERR"));
+	}
 
 	map<CString, struct checkItem>::iterator iter;
 	iter = m_checkMap.find(CString(item.id));
