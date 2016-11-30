@@ -719,6 +719,8 @@ void CwgwDlg::OnBnClickedOpen()
 		SetDlgItemText(IDC_OPEN, TEXT("打开"));
 		updateState();
 		*/
+		m_comStateStr.Format(TEXT("hid,speed:"));
+		m_comStateStr += speed;
 		return;
 	}
 
