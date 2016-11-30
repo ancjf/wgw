@@ -41,5 +41,16 @@ struct answerItem
 	}
 };
 
+struct readThreadData
+{
+	int run;
+	HWND hWnd;
+	HANDLE hCom;
+	CWinThread* thread;
+
+	unsigned inportlen;
+	unsigned outportlen;
+};
+
 unsigned chrVal(TCHAR c);
 unsigned chrMask();

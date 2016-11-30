@@ -43,7 +43,7 @@
 
 #include "common.h"
 
-
+#define WM_USER_THREADEND WM_USER + 10
 
 #ifdef _UNICODE
 #if defined _M_IX86

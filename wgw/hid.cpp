@@ -13,6 +13,9 @@
 #include <vector>
 #include "hid.h"
 
+#include "CH9326DBG.h"
+#include "CH9326DLL.H"
+
 using namespace std;
 
 extern "C" {  
@@ -34,22 +37,177 @@ LPVOID lpMsgBuf;
 /*用FormatMessage()得到由GetLastError()返回的出错编码所对应错误信息*/
 #define error FormatMessage( FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),(LPTSTR) &lpMsgBuf,0, NULL )
 /*---------------------------------------------*/
-BYTE lpBuf[8];
 
-int HIDWrite(HANDLE hComm, const char *buf, unsigned len, unsigned timeout)
+struct sendData
 {
-	DWORD dwWritten;
-	if(WriteFile(hComm, buf, len, &dwWritten, 0))
-		return dwWritten;
+	HANDLE hand;
+	unsigned timeout;
+	char *data;
+	unsigned len;
+
+};
+
+UINT  SendThreadFunction(LPVOID lpParameter)
+{
+	struct sendData *data  = (struct sendData *)lpParameter;
+	HANDLE hEventObject=CreateEvent(NULL,TRUE,TRUE, "");
+
+	CH9326WriteData(data->hand, data->data, data->len, hEventObject);
+
+	CloseHandle(hEventObject);
+	free(data);
+	return 0;
+}	
+
+
+int HIDWrite(HANDLE hand, const char *buf, unsigned len, unsigned timeout)
+{
+	struct sendData *data = (struct sendData *)malloc(sizeof(struct sendData) + len);
+	if(!data)
+		return -1;
+
+	data->data = (char*)(data+1);
+	data->timeout = timeout;
+	data->len = len;
+	data->hand = hand;
+	memcpy(data->data, buf, len);
+	AfxBeginThread(SendThreadFunction, data, THREAD_PRIORITY_NORMAL, 0, 0, NULL); 
+	return 0;
+}
+
+struct readData
+{
+	char *buf;
+	unsigned size;
+	unsigned len;
+
+	HWND hand;
+};
+
+
+bool s_ReadThread_start = false;
+
+char* getMsgStart(struct readData *data)
+{
+	for(unsigned i = 0; i < data->len; i++){
+		if(data->buf[i] == MSG_BEGIN && i+2 < data->len)
+			return data->buf+i;
+	}
+
+	return 0;
+}
+
+int processMsg(struct readData *data, char *start, unsigned len)
+{
+	if(start + len > data->buf + data->len)
+		return -1;
+
+	void *p = malloc(len);
+	if(!p)
+		return (start - data->buf) + len;
+
+	//::PostMessage(GetSafeHwnd(), WM_USER_THREADEND, 0, 0);
+	::PostMessage(data->hand, WM_USER_THREADEND, (WPARAM)p, len);
+	return (start - data->buf) + len;
+}
+
+int getMsgOne(struct readData *data)
+{
+	char* start = getMsgStart(data);
+	if(!start)
+		return 0;
+
+	switch(start[2]){
+		case TEXT('\x2'):	//答题对
+			return processMsg(data, start, 18);
+		case TEXT('\x5'):	//考勤
+			return processMsg(data, start, 14);
+		case TEXT('\x4'):	//开考勤
+		case TEXT('\x6'):	//关考勤
+		case TEXT('\x1'):	//开答题
+		case TEXT('\x3'):	//关答题
+			return processMsg(data, start, 3);
+		case TEXT('\x7'):	//校时
+			return processMsg(data, start, 6);
+		default:
+			return -1;
+	}
 
 	return -1;
+}
+
+unsigned getMsg(struct readData *data)
+{
+	int ret = 0;
+	
+	while(1){
+		int err = getMsgOne(data);
+		if(0 > err){
+			return data->len;
+		}
+		if(0 == err)
+			return ret;
+
+		ret += err;
+	}
+	
+	return data->len;
+}
+
+void addInput(struct readData *data, char *buf, long size)
+{
+	if(data->len + size >= data->size){
+		data->len = 0;
+		return;
+	}
+
+	memcpy(data->buf + data->len, buf, size);
+	data->len += size;
+
+	unsigned len = getMsg(data);
+	if(!len)
+		return;
+
+	ASSERT(data->len >= len);
+	data->len -= len;
+	memmove(data->buf, data->buf+len, data->len);
+}
+
+UINT  ReadThreadFunction(LPVOID lpParameter)
+{
+	struct readThreadData *threaddata = (struct readThreadData *)lpParameter;
+
+	char buf[1024];
+	char databuf[1024];
+	struct readData data;
+	data.buf = databuf;
+	data.size = sizeof(databuf);
+	data.len  = 0;
+	data.hand = threaddata->hWnd;
+
+	threaddata->run++;
+	while(threaddata->run > 0){
+		ULONG len = sizeof(buf);
+		if(!CH9326ReadThreadData(threaddata->hCom, data.buf, &len) ) 
+			break;
+
+		addInput(&data, buf, len);
+	}
+
+	threaddata->run = -1;
+	return 0;
+}
+
+int HIDStartRead(struct readThreadData *threaddata)
+{
+	threaddata->thread = AfxBeginThread(ReadThreadFunction,threaddata, THREAD_PRIORITY_NORMAL,0,0,NULL); 
+	return 0;
 }
 
 int HIDRead(HANDLE hComm, char *buf, unsigned size, unsigned timeout)
 {
     DWORD dwRead;
     OVERLAPPED osReader = {0};
-    memset(lpBuf, 0, 8);//数组清零
     // Create the overlapped event. Must be closed before exiting
     // to avoid a handle leak.
     osReader.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -107,9 +265,102 @@ int HIDRead(HANDLE hComm, char *buf, unsigned size, unsigned timeout)
     return dwRead;
 }
 
-HANDLE HIDOpen(CString name)
+unsigned char HIDSpeed(unsigned speed)
 {
-	return CreateFile(name.GetBuffer(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE, (LPSECURITY_ATTRIBUTES)NULL, OPEN_EXISTING, 0, NULL);
+	//1=300(ucRate为1时对应波特率300),2=600,3=1200,4=2400,5=4800,6=9600(默认值),7=14400,
+	//	8=19200,9=28800,10=38400,11=57600,12=76800,13=115200
+	unsigned char	ucRate = 6;
+	switch(speed){
+		case 300:
+			ucRate = 1;
+			break;
+		case 600:
+			ucRate = 2;
+			break;
+		case 1200:
+			ucRate = 3;
+			break;
+		case 2400:
+			ucRate = 4;
+			break;
+		case 4800:
+			ucRate = 5;
+			break;
+		case 9600:
+			ucRate = 6;
+			break;
+		case 14400:
+			ucRate = 7;
+			break;
+		case 19200:
+			ucRate = 8;
+			break;
+		case 28800:
+			ucRate = 9;
+			break;
+		case 38400:
+			ucRate = 10;
+			break;
+		case 57600:
+			ucRate = 11;
+			break;
+		case 76800:
+			ucRate = 12;
+			break;
+		case 115200:
+			ucRate = 13;
+			break;
+	}
+
+	return ucRate;
+}
+
+int HIDClose(struct readThreadData *data)
+{
+	CH9326CloseDevice(data->hCom);
+
+	data->run = 0;
+	while(data->run == 0);
+
+	data->hCom = INVALID_HANDLE_VALUE;
+	return 0;
+}
+
+int HIDOpen(CString name, unsigned speed, struct readThreadData *data)
+{
+	HANDLE hHID = INVALID_HANDLE_VALUE;
+
+	hHID = CH9326OpenDevicePath((PCHAR)LPCTSTR (name.GetBuffer()));
+	if(hHID==INVALID_HANDLE_VALUE)
+	{
+		AfxMessageBox("打开HID设备失败");
+		return -1;
+	}
+
+	USHORT VID,PID,VER;
+	//获取厂商ID和设备ID
+	if(!CH9326GetAttributes(hHID,&VID,&PID,&VER)){
+		CH9326CloseDevice(hHID);
+		return -1;
+	}
+
+	char version[100]="";
+	sprintf(version,"设备已连接,VID=%XPID=%X VER=%X ",VID,PID,VER);
+		
+	USHORT inportlen,outportlen;
+	
+	CH9326GetBufferLen(hHID,&inportlen,&outportlen);
+	CH9326SetTimeOut(hHID,3000,3000);
+
+	data->inportlen = inportlen;
+	data->outportlen = outportlen;
+	data->hCom = hHID;
+
+	CH9326SetRate(hHID, HIDSpeed(speed), 4, 1, 4, 48);
+	data->run = 1;
+	HIDStartRead(data);
+	return 0;
+	//return CreateFile(name.GetBuffer(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE, (LPSECURITY_ATTRIBUTES)NULL, OPEN_EXISTING, 0, NULL);
 }
 
 void HIDSearch(vector<CString> &vstr)
@@ -178,9 +429,8 @@ void HIDSampleFunc()
         return;
 	}
 
-    HANDLE hDev = HIDOpen(vstr[0]); //打开设备，使用重叠（异步）方式;
-    printf("传递设备句柄:%x\n", hDev);
-    if (hDev == INVALID_HANDLE_VALUE){
+	struct readThreadData threadData;
+    if (HIDOpen(vstr[0], 9600, &threadData)){
 		::MessageBox(0, TEXT("打开设备失败"), TEXT("标题"), MB_OKCANCEL);
         return;
 	}
@@ -191,7 +441,7 @@ void HIDSampleFunc()
 
     for(int i = 0; i < 24; i++) {
 
-        err = HIDRead(hDev, buf, sizeof(buf), 100);//error;//
+		err = HIDRead(threadData.hCom, buf, sizeof(buf), 100);//error;//
 
 		if(err>0){
 			printf("%x \n", err);
@@ -206,7 +456,7 @@ void HIDSampleFunc()
         
     }
 
-	CloseHandle(hDev);
+	CloseHandle(threadData.hCom);
 }
 
 int _tmain_1(int argc, _TCHAR *argv[])

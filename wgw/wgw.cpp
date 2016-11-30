@@ -92,3 +92,9 @@ BOOL CwgwApp::InitInstance()
 	return FALSE;
 }
 
+BOOL CwgwApp::OnIdle(LONG lCount)
+{
+	if (CWinApp::OnIdle(lCount)) 
+		return TRUE;
+}
+

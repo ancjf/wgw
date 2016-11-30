@@ -49,7 +49,7 @@ protected:
 
 	TCHAR *getMsgStart(TCHAR *in, unsigned len);
 	void msgAppend(CString &str, TCHAR *in, unsigned len);
-	int getMsgOne(TCHAR *in, unsigned len, CString &str);
+	int getMsgOne(TCHAR *in, unsigned len);
 	unsigned getMsg(TCHAR *in, unsigned len, CString &str);
 
 	void putOutput(CMscomm1 *com, const CString &msg);
@@ -66,7 +66,7 @@ public:
 	afx_msg void OnBnClickedOpenanswer();
 	DECLARE_EVENTSINK_MAP()
 	void OnCommMscomm1();
-
+	afx_msg LRESULT OnUserThreadend(WPARAM wParam, LPARAM lParam);
 private:
 	CMscomm1 m_ctrlComm;
 	bool m_commOpened;
@@ -91,6 +91,8 @@ private:
 
 	map<CString, struct checkItem> m_checkMap;
 	vector<struct answerItem> m_answerVec;
+
+	struct readThreadData threadData;
 public:
 	afx_msg void OnBnClickedCheckon();
 	afx_msg void OnBnClickedCheckoff();

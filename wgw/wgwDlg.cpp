@@ -8,12 +8,16 @@
 #include "afxdialogex.h"
 #include "EnumSerial.h"
 #include "hid.h"
+#include "CH9326DBG.h"
+#include "CH9326DLL.H"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
 #pragma comment(lib, "setupapi.lib") 
+#pragma comment(lib, "CH9326DLL.lib") 
+
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
 
 static int CALLBACK MyCompareProc(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort)
@@ -163,9 +167,9 @@ int CwgwDlg::processMsgAnswer(TCHAR *in)
 	item.electricity = in[10];
 
 	if(in[11] == TEXT('\x1')){
-		item.answer[0] = TEXT('\x2713');
+		//item.answer[0] = TEXT('\x2713');
 	}else if(in[11] == TEXT('\x2')){
-		item.answer[0] = TEXT('\x2717');
+		//item.answer[0] = TEXT('\x2717');
 	}else{
 		for(int i = 0; i<4; i++){
 			TCHAR chr = (((in[11+i]&0xf0)>>4)-10)+TEXT('A');
@@ -215,7 +219,7 @@ int CwgwDlg::processMsgCheck(TCHAR *in)
 	return m_dlgCheck.insertCheck(&item);
 }
 
-int CwgwDlg::getMsgOne(TCHAR *in, unsigned len, CString &str)
+int CwgwDlg::getMsgOne(TCHAR *in, unsigned len)
 {
 	TCHAR *start = getMsgStart(in, len);
 	if(!start)
@@ -266,7 +270,7 @@ unsigned CwgwDlg::getMsg(TCHAR *in, unsigned len, CString &str)
 	
 	while(1){
 		ASSERT(len >= ret);
-		int err = getMsgOne(in+ret, len-ret, str);
+		int err = getMsgOne(in+ret, len-ret);
 		if(0 > err){
 			ASSERT(len >= ret);
 			msgAppend(m_editOther, in+ret, len-ret);
@@ -288,7 +292,7 @@ void CwgwDlg::GetComLis(CComboBox * CCombox)
 	// Populate the list of serial ports.
 	EnumSerialPorts(asi,FALSE/*include all*/);
 	CCombox->ResetContent();
-	CCombox->SetDroppedWidth(300);
+	CCombox->SetDroppedWidth(500);
 	//CCombox->SendMessage(CB_SETITEMHEIGHT,100,600);
 	for (int ii=0; ii<asi.GetSize(); ii++) {
 		CString strPortName = asi[ii].strPortName;
@@ -342,6 +346,10 @@ CwgwDlg::CwgwDlg(CWnd* pParent /*=NULL*/)
 	m_openAnswerEd = false;
 	m_checkOn = false;
 	m_dataLen = 0;
+
+	memset(&threadData, 0, sizeof(threadData));
+	threadData.hWnd = GetSafeHwnd();
+	threadData.hCom = INVALID_HANDLE_VALUE;
 }
 
 void CwgwDlg::DoDataExchange(CDataExchange* pDX)
@@ -368,6 +376,7 @@ BEGIN_MESSAGE_MAP(CwgwDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_TIMING, &CwgwDlg::OnBnClickedTiming)
 	ON_EN_CHANGE(IDC_RFID, &CwgwDlg::OnEnChangeRfid)
 	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB1, &CwgwDlg::OnTcnSelchangeTab1)
+	ON_MESSAGE(WM_USER_THREADEND, OnUserThreadend)
 END_MESSAGE_MAP()
 
 
@@ -601,6 +610,41 @@ void CwgwDlg::OnDestroy()
 	// TODO: 在此处添加消息处理程序代码
 }
 
+void InitSelDev(CComboBox *CCombox)
+{
+	int deviceNo=0;
+	CHAR buf[1024];
+	HANDLE hHID;
+	
+	
+	SetLastError(NO_ERROR);
+	while(GetLastError()!=ERROR_NO_MORE_ITEMS)
+	{
+			memset(buf,0,sizeof(buf));
+			if( CH9326GetDevicePath(deviceNo,buf,sizeof(buf)) )
+			{
+				//打开设备,并获得设备句柄
+				 hHID=CreateFile(buf,
+					GENERIC_READ|GENERIC_WRITE,
+					FILE_SHARE_READ|FILE_SHARE_WRITE,
+					NULL,OPEN_EXISTING,FILE_FLAG_OVERLAPPED,NULL);
+				
+				if(hHID==INVALID_HANDLE_VALUE)
+				{
+					deviceNo++;
+					continue;
+				}
+				CharUpperBuff(buf,strlen(buf));
+				CCombox->InsertString(0,(const char *)buf);
+
+				CloseHandle(hHID);
+				
+			}
+			deviceNo++;
+		
+	}
+	
+}
 
 void CwgwDlg::OnBnClickedLink()
 {
@@ -623,6 +667,7 @@ void CwgwDlg::OnBnClickedLink()
 		CCombox->AddString(strFriendlyName);
 	}
 
+	InitSelDev(CCombox);
 	CCombox->SetCurSel(0);
 	CCombox->SelectString(0, com);
 }
@@ -630,7 +675,23 @@ void CwgwDlg::OnBnClickedLink()
 
 void CwgwDlg::OnBnClickedOpen()
 {
+	CString text;
+	GetDlgItemText(IDC_OPEN, text);
+	if(text != TEXT("打开")){
+		if(threadData.hCom == INVALID_HANDLE_VALUE){
+			HIDClose(&threadData);
+		}else{
+			m_ctrlComm.put_PortOpen(false);
+		}
+
+		SetDlgItemText(IDC_OPEN, TEXT("打开"));
+		m_comStateStr = TEXT("串口未打开");
+		updateState();
+		return;
+	}
+
 	// TODO: 在此添加控件通知处理程序代码
+	/*
 	if(m_ctrlComm.get_PortOpen()){
 		m_ctrlComm.put_PortOpen(false);
 		SetDlgItemText(IDC_OPEN, TEXT("打开"));
@@ -638,6 +699,11 @@ void CwgwDlg::OnBnClickedOpen()
 		updateState();
 		return;
 	}
+	*/
+
+	CString speed;
+	GetDlgItemText(IDC_SPEED, speed);
+
 
 	CString strPortName;
 	((CComboBox*)GetDlgItem(IDC_COMLIST))->GetWindowText(strPortName);
@@ -645,16 +711,18 @@ void CwgwDlg::OnBnClickedOpen()
 	if(0 > index)
 		index = strPortName.Find(TEXT("COM"));
 	if(0 > index){
+		HIDOpen(strPortName, _ttoi(speed.GetBuffer()), &threadData);
+		/*
 		MessageBox(TEXT("串口不合法"));
 		m_comStateStr = TEXT("串口未打开");
 		m_comStateStr.Format(TEXT("串口未打开:%s"), strPortName.GetBuffer());
 		SetDlgItemText(IDC_OPEN, TEXT("打开"));
 		updateState();
+		*/
 		return;
 	}
 
-	CString speed;
-	((CComboBox*)GetDlgItem(IDC_SPEED))->GetWindowText(speed);
+
 	CString str1 = speed+TEXT(",n,8,1");
 	TCHAR *p = strPortName.GetBuffer()+index+3;
 	int n = _tstoi(p);
@@ -843,3 +911,13 @@ void CwgwDlg::OnTcnSelchangeTab1(NMHDR *pNMHDR, LRESULT *pResult)
 	//m_tabctrl.SetCurSel(CurSel);
 	*pResult = 0;
 }
+
+LRESULT CwgwDlg::OnUserThreadend(WPARAM wParam, LPARAM lParam) 
+{
+	char *msg = (char *)wParam;
+	unsigned len = lParam;
+
+	getMsgOne(msg, len);
+	free(msg);
+	return 0;
+} 
