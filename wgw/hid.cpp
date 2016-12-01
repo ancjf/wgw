@@ -473,6 +473,11 @@ int COMOpen(CString name, unsigned speed, struct readThreadData *data)
 	//根据设备控制块配置通信设备
 	SetCommState(/*COMFileTemp*/data->hCom, &dcb ) ;
 
+	PurgeComm( /*COMFileTemp*/data->hCom, PURGE_TXABORT | PURGE_RXABORT | PURGE_TXCLEAR | PURGE_RXCLEAR ) ;
+
+	//指定串口执行扩展功能
+	EscapeCommFunction( /*COMFileTemp*/data->hCom, SETDTR ) ;
+
 	data->inportlen = 128;
 	data->outportlen = 128;
 	HIDStartRead(data);
