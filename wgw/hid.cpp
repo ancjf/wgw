@@ -43,32 +43,36 @@ struct sendData
 	unsigned timeout;
 	char *data;
 	unsigned len;
-
+	bool isCH9326;
 };
 
 UINT  SendThreadFunction(LPVOID lpParameter)
 {
 	struct sendData *data  = (struct sendData *)lpParameter;
-	HANDLE hEventObject=CreateEvent(NULL,TRUE,TRUE, "");
 
-	CH9326WriteData(data->hand, data->data, data->len, hEventObject);
+	if(data->isCH9326){
+		HANDLE hEventObject=CreateEvent(NULL,TRUE,TRUE, "");
+		CH9326WriteData(data->hand, data->data, data->len, hEventObject);
+		CloseHandle(hEventObject);
+		free(data);
+	}else{
+		WriteFile(data->hand, data->data, data->len, NULL, NULL);
+	}
 
-	CloseHandle(hEventObject);
-	free(data);
 	return 0;
 }	
 
 
-int HIDWrite(HANDLE hand, const char *buf, unsigned len, unsigned timeout)
+int HIDWrite(HANDLE hand, const char *buf, unsigned len, bool isCH9326)
 {
 	struct sendData *data = (struct sendData *)malloc(sizeof(struct sendData) + len);
 	if(!data)
 		return -1;
 
 	data->data = (char*)(data+1);
-	data->timeout = timeout;
 	data->len = len;
 	data->hand = hand;
+	data->isCH9326 = isCH9326;
 	memcpy(data->data, buf, len);
 	AfxBeginThread(SendThreadFunction, data, THREAD_PRIORITY_NORMAL, 0, 0, NULL); 
 	return 0;
@@ -180,6 +184,8 @@ UINT  ReadThreadFunction(LPVOID lpParameter)
 {
 	struct readThreadData *threaddata = (struct readThreadData *)lpParameter;
 
+	HANDLE hCom = threaddata->hCom;
+	bool isCH9326 = threaddata->isCH9326;
 	char buf[128];
 	struct readData data;	
 	data.size = 1024;
@@ -192,36 +198,41 @@ UINT  ReadThreadFunction(LPVOID lpParameter)
 		data.inportlen = sizeof(buf);
 	data.outportlen = threaddata->outportlen;
 
-	threaddata->run++;
-	while(threaddata->run > 0){
+	threaddata->runing = true;
+	while(!threaddata->exit){
 
 		ULONG len = data.inportlen;
-		if(len && !CH9326ReadThreadData(threaddata->hCom, data.buf, &len) ) {
-			Sleep(100);
-			continue;
+		if(!len){
+			break;
+		}
+
+		if(isCH9326){
+			if(!CH9326ReadThreadData(hCom, data.buf, &len) ) {
+				break;
+			}
+				
 		}else{
-			Sleep(100);
-			continue;
+			if (!ReadFile(hCom, buf, len, &len, NULL)){
+				break;
+			}
 		}
 
 		if(len)
 			addInput(&data, buf, len);
 	}
 
-	threaddata->run = -1;
+	
 	free(data.buf);
+	threaddata->runing = false;
 	//AfxEndThread(0);
 	return 0;
 }
 
 int HIDStartRead(struct readThreadData *threaddata)
-{/*
-	threaddata->run = 0;
-	while(threaddata->run >= 0)
-		Sleep(100);*/
-
-	threaddata->run = 1;
-	threaddata->thread = AfxBeginThread(ReadThreadFunction,threaddata, THREAD_PRIORITY_NORMAL,0,0,NULL); 
+{
+	threaddata->exit = false;
+	threaddata->runing = false;
+	threaddata->thread = AfxBeginThread(ReadThreadFunction, threaddata, THREAD_PRIORITY_NORMAL, 0, 0, NULL); 
 	return 0;
 }
 
@@ -336,16 +347,60 @@ unsigned char HIDSpeed(unsigned speed)
 	return ucRate;
 }
 
+int COMClose(struct readThreadData *data)
+{
+	CloseHandle(data->hCom);
+	data->hCom = INVALID_HANDLE_VALUE;
+	return 0;
+}
+
 int HIDClose(struct readThreadData *data)
 {
-	if(data->hCom != INVALID_HANDLE_VALUE)
-		CH9326CloseDevice(data->hCom);
+	data->exit = true;
 
-	data->run = 0;
-	while(data->run >= 0);
+	if(data->isCH9326){
+		if(data->hCom != INVALID_HANDLE_VALUE)
+			CH9326CloseDevice(data->hCom);
+		data->hCom = INVALID_HANDLE_VALUE;
+	}else{
+		COMClose(data);
+	}
+
+	while(data->runing);
 		Sleep(100);
-	
-	data->hCom = INVALID_HANDLE_VALUE;
+
+	return 0;
+}
+
+int COMOpen(CString name, unsigned speed, struct readThreadData *data)
+{
+	int index = name.Find(TEXT("com"));
+	if(0 > index)
+		index = name.Find(TEXT("COM"));
+	if(0 > index)
+		return 1;
+
+	TCHAR *p = name.GetBuffer()+index+3;
+	CString szCom;
+	szCom.Format(_T("\\\\.\\COM%d"), _tstoi(p));
+
+	data->hCom = CreateFile(szCom.GetBuffer(50), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0,NULL);
+	if(data->hCom = INVALID_HANDLE_VALUE)
+		return -1;
+
+	data->isCH9326 = false;
+
+	DCB dcb;
+	GetCommState(data->hCom, &dcb);
+	dcb.BaudRate = speed;//波特率
+	dcb.fBinary = TRUE;//是否允许传二进制
+	dcb.fParity = TRUE;//是否奇偶校验
+	dcb.ByteSize = 8;//数据位
+	dcb.Parity = ODDPARITY;//奇偶校验方式
+	dcb.StopBits = ONESTOPBIT;//停止位
+	SetCommState(data->hCom, &dcb);
+
+	HIDStartRead(data);
 	return 0;
 }
 
@@ -385,8 +440,8 @@ int HIDOpen(CString name, unsigned speed, struct readThreadData *data)
 	data->inportlen = inportlen;
 	data->outportlen = outportlen;
 	data->hCom = hHID;
+	data->isCH9326 = true;
 
-	data->run = 1;
 	HIDStartRead(data);
 	return 0;
 	//return CreateFile(name.GetBuffer(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE, (LPSECURITY_ATTRIBUTES)NULL, OPEN_EXISTING, 0, NULL);

@@ -43,11 +43,14 @@ struct answerItem
 
 struct readThreadData
 {
-	int run;
+	bool runing;
+	bool exit;
+
 	HWND hWnd;
 	HANDLE hCom;
 	CWinThread* thread;
 
+	bool isCH9326;
 	unsigned inportlen;
 	unsigned outportlen;
 };
