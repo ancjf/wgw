@@ -56,7 +56,8 @@ UINT  SendThreadFunction(LPVOID lpParameter)
 		CloseHandle(hEventObject);
 		free(data);
 	}else{
-		bool ret = WriteFile(data->hand, data->data, data->len, NULL, NULL);
+		DWORD dwReadSize = 0;
+		bool ret = WriteFile(data->hand, data->data, data->len, &dwReadSize, NULL);
 
 		int i = 0;
 	}
@@ -106,21 +107,21 @@ char* getMsgStart(char *buf, unsigned len)
 	return 0;
 }
 
-int processMsg(struct readData *data, char *start, unsigned len)
+int processMsg(char *start, unsigned size, unsigned len)
 {
-	if(start + len > data->buf + data->len)
-		return -1;
+	if(len > size)
+		return 0;
 
 	void *p = malloc(len);
 	if(!p)
-		return (start - data->buf) + len;
+		return len;
 
 	//::PostMessage(GetSafeHwnd(), WM_USER_THREADEND, 0, 0);
 	//CWnd *pMainWnd = AfxGetMainWnd();pMainWnd->m_hWnd
 	//::PostMessage(data->hand, WM_USER_THREADEND, (WPARAM)p, len);
 	memcpy(p, start, len);
 	::PostMessage(AfxGetMainWnd()->m_hWnd, WM_USER_THREADEND, (WPARAM)p, len);
-	return (start - data->buf) + len;
+	return len;
 }
 
 int getMsgOne(struct readData *data, char *buf, unsigned len)
@@ -131,16 +132,16 @@ int getMsgOne(struct readData *data, char *buf, unsigned len)
 
 	switch(start[2]){
 		case TEXT('\x2'):	//答题对
-			return processMsg(data, start, 18);
+			return processMsg(start, len, 18);
 		case TEXT('\x5'):	//考勤
-			return processMsg(data, start, 14);
+			return processMsg(start, len, 14);
 		case TEXT('\x4'):	//开考勤
 		case TEXT('\x6'):	//关考勤
 		case TEXT('\x1'):	//开答题
 		case TEXT('\x3'):	//关答题
-			return processMsg(data, start, 3);
+			return processMsg(start, len, 3);
 		case TEXT('\x7'):	//校时
-			return processMsg(data, start, 6);
+			return processMsg(start, len, 6);
 		default:
 			return -1;
 	}
@@ -153,6 +154,7 @@ unsigned getMsg(struct readData *data)
 	int ret = 0;
 	
 	while(1){
+		ASSERT(data->len >= ret);
 		int err = getMsgOne(data, data->buf + ret, data->len - ret);
 		if(0 > err){
 			return data->len;
