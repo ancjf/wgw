@@ -56,9 +56,12 @@ UINT  SendThreadFunction(LPVOID lpParameter)
 		CloseHandle(hEventObject);
 		free(data);
 	}else{
-		WriteFile(data->hand, data->data, data->len, NULL, NULL);
+		bool ret = WriteFile(data->hand, data->data, data->len, NULL, NULL);
+
+		int i = 0;
 	}
 
+	free(data);
 	return 0;
 }	
 
@@ -93,11 +96,11 @@ struct readData
 
 bool s_ReadThread_start = false;
 
-char* getMsgStart(struct readData *data)
+char* getMsgStart(char *buf, unsigned len)
 {
-	for(unsigned i = 0; i < data->len; i++){
-		if(data->buf[i] == MSG_BEGIN && i+2 < data->len)
-			return data->buf+i;
+	for(unsigned i = 0; i < len; i++){
+		if(buf[i] == MSG_BEGIN && i+2 < len)
+			return buf+i;
 	}
 
 	return 0;
@@ -114,13 +117,15 @@ int processMsg(struct readData *data, char *start, unsigned len)
 
 	//::PostMessage(GetSafeHwnd(), WM_USER_THREADEND, 0, 0);
 	//CWnd *pMainWnd = AfxGetMainWnd();pMainWnd->m_hWnd
-	::PostMessage(data->hand, WM_USER_THREADEND, (WPARAM)p, len);
+	//::PostMessage(data->hand, WM_USER_THREADEND, (WPARAM)p, len);
+	memcpy(p, start, len);
+	::PostMessage(AfxGetMainWnd()->m_hWnd, WM_USER_THREADEND, (WPARAM)p, len);
 	return (start - data->buf) + len;
 }
 
-int getMsgOne(struct readData *data)
+int getMsgOne(struct readData *data, char *buf, unsigned len)
 {
-	char* start = getMsgStart(data);
+	char* start = getMsgStart(buf, len);
 	if(!start)
 		return 0;
 
@@ -148,7 +153,7 @@ unsigned getMsg(struct readData *data)
 	int ret = 0;
 	
 	while(1){
-		int err = getMsgOne(data);
+		int err = getMsgOne(data, data->buf + ret, data->len - ret);
 		if(0 > err){
 			return data->len;
 		}
@@ -178,6 +183,21 @@ void addInput(struct readData *data, char *buf, long size)
 	ASSERT(data->len >= len);
 	data->len -= len;
 	memmove(data->buf, data->buf+len, data->len);
+}
+
+void msgXData(CString &str, TCHAR *in, unsigned len)
+{
+	unsigned mask = chrMask();
+
+	TCHAR buffer[2048];
+
+	ASSERT(sizeof(buffer)/sizeof(buffer[0]) > len+1);
+	unsigned i;
+	for(i = 0; i < len; i++){
+		_stprintf(buffer + 2*i, TEXT("%02x"), chrVal(in[i]));
+	}
+
+	str = CString(buffer) + TEXT("\r\n") + str;
 }
 
 UINT  ReadThreadFunction(LPVOID lpParameter)
@@ -217,8 +237,11 @@ UINT  ReadThreadFunction(LPVOID lpParameter)
 			}
 		}
 
-		if(len)
+		CString debug;
+		if(len){
+			msgXData(debug, buf, len);
 			addInput(&data, buf, len);
+		}
 	}
 
 	
@@ -349,8 +372,10 @@ unsigned char HIDSpeed(unsigned speed)
 
 int COMClose(struct readThreadData *data)
 {
-	CloseHandle(data->hCom);
-	data->hCom = INVALID_HANDLE_VALUE;
+	if(data->hCom != INVALID_HANDLE_VALUE){
+		CloseHandle(data->hCom);
+		data->hCom = INVALID_HANDLE_VALUE;
+	}
 	return 0;
 }
 
@@ -359,16 +384,22 @@ int HIDClose(struct readThreadData *data)
 	data->exit = true;
 
 	if(data->isCH9326){
-		if(data->hCom != INVALID_HANDLE_VALUE)
+		if(data->hCom != INVALID_HANDLE_VALUE){
 			CH9326CloseDevice(data->hCom);
-		data->hCom = INVALID_HANDLE_VALUE;
+			data->hCom = INVALID_HANDLE_VALUE;
+		}
 	}else{
 		COMClose(data);
 	}
 
-	while(data->runing);
-		Sleep(100);
+	for(int i = 0; i < 100; i++){
+		Sleep(10);
+		if(!data->runing)
+			break;
+	}
 
+	if(data->runing)
+		TerminateThread(data->thread, 0);
 	return 0;
 }
 
@@ -382,11 +413,17 @@ int COMOpen(CString name, unsigned speed, struct readThreadData *data)
 
 	TCHAR *p = name.GetBuffer()+index+3;
 	CString szCom;
-	szCom.Format(_T("\\\\.\\COM%d"), _tstoi(p));
+	int n = _tstoi(p);
 
+	szCom.Format(_T("COM%d"), n);
 	data->hCom = CreateFile(szCom.GetBuffer(50), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0,NULL);
-	if(data->hCom = INVALID_HANDLE_VALUE)
-		return -1;
+	if(data->hCom == INVALID_HANDLE_VALUE){
+		szCom.Format(_T("\\\\.\\COM%d"), n);
+
+		data->hCom = CreateFile(szCom.GetBuffer(50), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0,NULL);
+		if(data->hCom = INVALID_HANDLE_VALUE)
+			return -1;
+	}
 
 	data->isCH9326 = false;
 
@@ -400,6 +437,8 @@ int COMOpen(CString name, unsigned speed, struct readThreadData *data)
 	dcb.StopBits = ONESTOPBIT;//停止位
 	SetCommState(data->hCom, &dcb);
 
+	data->inportlen = 128;
+	data->outportlen = 128;
 	HIDStartRead(data);
 	return 0;
 }
@@ -410,6 +449,10 @@ int HIDOpen(CString name, unsigned speed, struct readThreadData *data)
 	data->outportlen = 32;
 	data->hCom = (HANDLE)32;
 	return HIDStartRead(data);*/
+	int err = COMOpen(name, speed, data);
+	if(0 >= err)
+		return err;
+
 	HANDLE hHID = INVALID_HANDLE_VALUE;
 
 	hHID = CH9326OpenDevicePath((PCHAR)LPCTSTR (name.GetBuffer()));
@@ -475,12 +518,12 @@ void HIDSearch(vector<CString> &vstr)
             return;
         }
 
-		hidHandle = CreateFile(devDetail->DevicePath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, (LPSECURITY_ATTRIBUTES)NULL, OPEN_EXISTING, 0, NULL);
+		hidHandle = CreateFile(devDetail->DevicePath, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, (LPSECURITY_ATTRIBUTES)NULL, OPEN_EXISTING, 0, NULL);
         
         if (hidHandle == INVALID_HANDLE_VALUE) {
-            SetupDiDestroyDeviceInfoList(hDevInfo);
             free(devDetail);
-            return;
+			++deviceNo;
+            continue;
         }
 
         printf("打开成功\n");
@@ -677,6 +720,7 @@ HANDLE OpenMyHIDDevice(int overlapped)
             }
         }
     }
+
     SetupDiDestroyDeviceInfoList(hDevInfo);
     return hidHandle;
 }

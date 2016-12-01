@@ -101,6 +101,7 @@ int CDlgCheck::processMsgCheck(TCHAR *in)
 		item.electricity = 6;
 
 	if(checkcode != in[11]){
+		return 0;
 		_tcscpy(item.id, TEXT("CHECKCODEERR"));
 	}
 

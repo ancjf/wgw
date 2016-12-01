@@ -226,6 +226,9 @@ int CwgwDlg::processMsgCheck(TCHAR *in)
 
 int CwgwDlg::getMsgOne(TCHAR *in, unsigned len)
 {
+	CString debug;
+	msgAppend(debug, in, len);
+
 	TCHAR *start = getMsgStart(in, len);
 	if(!start)
 		return 0;
@@ -535,9 +538,10 @@ HCURSOR CwgwDlg::OnQueryDragIcon()
 
 bool CwgwDlg::comOpened()
 {
-	return m_commOpened;
+	//return m_commOpened;
 
-	if(!m_ctrlComm.get_PortOpen()){
+	//if(!m_ctrlComm.get_PortOpen()){
+	if(!m_commOpened){
 		MessageBox(TEXT("串口没打开"));
 		updateState();
 		return false;
@@ -634,10 +638,9 @@ void InitSelDev(CComboBox *CCombox)
 				 hHID=CreateFile(buf,
 					GENERIC_READ|GENERIC_WRITE,
 					FILE_SHARE_READ|FILE_SHARE_WRITE,
-					NULL,OPEN_EXISTING,FILE_FLAG_OVERLAPPED,NULL);
+					NULL,OPEN_EXISTING, 0, NULL);
 				
-				if(hHID==INVALID_HANDLE_VALUE)
-				{
+				if(hHID==INVALID_HANDLE_VALUE){
 					deviceNo++;
 					continue;
 				}
@@ -699,11 +702,13 @@ void CwgwDlg::OnBnClickedOpen()
 	CString text;
 	GetDlgItemText(IDC_OPEN, text);
 	if(text != TEXT("打开")){
+		/*
 		if(threadData.hCom != INVALID_HANDLE_VALUE){
 			HIDClose(&threadData);
 		}else{
 			m_ctrlComm.put_PortOpen(false);
-		}
+		}*/
+		HIDClose(&threadData);
 
 		m_commOpened = false;
 		SetDlgItemText(IDC_OPEN, TEXT("打开"));
@@ -732,8 +737,8 @@ void CwgwDlg::OnBnClickedOpen()
 	int index = strPortName.Find(TEXT("com"));
 	if(0 > index)
 		index = strPortName.Find(TEXT("COM"));
-	if(0 > index){
-		HIDOpen(strPortName, _ttoi(speed.GetBuffer()), &threadData);
+	if(HIDOpen(strPortName, _ttoi(speed.GetBuffer()), &threadData)){
+		//HIDOpen(strPortName, _ttoi(speed.GetBuffer()), &threadData);
 		/*
 		MessageBox(TEXT("串口不合法"));
 		m_comStateStr = TEXT("串口未打开");
@@ -741,6 +746,14 @@ void CwgwDlg::OnBnClickedOpen()
 		SetDlgItemText(IDC_OPEN, TEXT("打开"));
 		updateState();
 		*/
+
+		m_commOpened = false;
+		SetDlgItemText(IDC_OPEN, TEXT("打开"));
+		m_comStateStr = TEXT("串口未打开");
+		updateState();
+		return;
+	}else{
+		m_commOpened = true;
 		m_comStateStr.Format(TEXT("hid,speed:"));
 		m_comStateStr += speed;
 		SetDlgItemText(IDC_OPEN, TEXT("关闭"));
@@ -808,6 +821,10 @@ void CwgwDlg::sendComMsg(CMscomm1 *com, const CString &msg)
 	int len = out.GetLength();
 	msgAppend(debug, out.GetBuffer(), len);
 	//putOutput(com, out);
+
+	HIDWrite(threadData.hCom, out.GetBuffer(), len, threadData.isCH9326);
+	return;
+
 	if(threadData.hCom == INVALID_HANDLE_VALUE)
 		com->put_Output(COleVariant(out));
 	else
@@ -847,7 +864,7 @@ void CwgwDlg::OnBnClickedTiming()
 {
 	// TODO: 校时
 	if(!comOpened()){
-		HIDSampleFunc();
+		//HIDSampleFunc();
 		return;
 	}
 
@@ -875,7 +892,7 @@ void CwgwDlg::updateState()
 	WriteProfileString(TEXT("wgw"), TEXT("id"), id);
 	//WritePrivateProfileString(TEXT("wgw"), TEXT("id"), id, TEXT(".\\info.ini"));
 
-	if(!comOpened()){
+	if(!m_commOpened){
 		SetWindowText(m_comStateStr);
 		return;
 	}
