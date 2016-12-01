@@ -400,6 +400,7 @@ int HIDClose(struct readThreadData *data)
 
 	if(data->runing)
 		TerminateThread(data->thread, 0);
+
 	return 0;
 }
 

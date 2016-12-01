@@ -100,9 +100,11 @@ int CDlgCheck::processMsgCheck(TCHAR *in)
 	if(item.electricity < 0)
 		item.electricity = 6;
 
+	int ii = in[11];
 	if(checkcode != in[11]){
-		return 0;
-		_tcscpy(item.id, TEXT("CHECKCODEERR"));
+		//return 0;
+		item.electricity = 9;
+		//_tcscpy(item.id, TEXT("CHECKCODEERR"));
 	}
 
 	map<CString, struct checkItem>::iterator iter;
