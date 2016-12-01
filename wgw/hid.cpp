@@ -373,6 +373,14 @@ unsigned char HIDSpeed(unsigned speed)
 int COMClose(struct readThreadData *data)
 {
 	if(data->hCom != INVALID_HANDLE_VALUE){
+		SetCommMask(data->hCom, 0) ;
+
+		//清除数据终端就绪信号
+		EscapeCommFunction(data->hCom, CLRDTR ) ;
+
+		//丢弃通信资源的输出或输入缓冲区字符并终止在通信资源上挂起的读、写操//场作 
+		PurgeComm(data->hCom, PURGE_TXABORT | PURGE_RXABORT | PURGE_TXCLEAR | PURGE_RXCLEAR ) ;
+
 		CloseHandle(data->hCom);
 		data->hCom = INVALID_HANDLE_VALUE;
 	}
@@ -428,15 +436,42 @@ int COMOpen(CString name, unsigned speed, struct readThreadData *data)
 
 	data->isCH9326 = false;
 
-	DCB dcb;
-	GetCommState(data->hCom, &dcb);
-	dcb.BaudRate = speed;//波特率
-	dcb.fBinary = TRUE;//是否允许传二进制
-	dcb.fParity = TRUE;//是否奇偶校验
-	dcb.ByteSize = 8;//数据位
-	dcb.Parity = ODDPARITY;//奇偶校验方式
-	dcb.StopBits = ONESTOPBIT;//停止位
-	SetCommState(data->hCom, &dcb);
+		// 设置缓冲区,输入/输出大小(字节数)
+	SetupComm( /*COMFileTemp*/data->hCom,4096,4096) ;
+	// 指定监视事件_收到字符放入缓冲区
+	SetCommMask(/*COMFileTemp*/data->hCom, EV_RXCHAR ) ;
+
+	COMMTIMEOUTS CommTimeOuts;
+	CommTimeOuts.ReadIntervalTimeout = 0xFFFFFFFF ;
+	CommTimeOuts.ReadTotalTimeoutMultiplier = 0 ;
+	CommTimeOuts.ReadTotalTimeoutConstant = 1000 ;
+	CommTimeOuts.WriteTotalTimeoutMultiplier = 2*speed/9600 ;
+	CommTimeOuts.WriteTotalTimeoutConstant = 0 ;
+	//给定串口读与操作限时
+	SetCommTimeouts(/*COMFileTemp*/data->hCom, &CommTimeOuts ) ;
+
+	//设置串口参数:波特率=9600;停止位 1个;无校验;8位
+	DCB dcb ;
+	dcb.DCBlength = sizeof( DCB ) ;
+	GetCommState( /*COMFileTemp*/data->hCom, &dcb ) ;
+	dcb.BaudRate =speed;
+	dcb.StopBits =ONESTOPBIT;
+	dcb.Parity = NOPARITY;
+	dcb.ByteSize=8;
+	dcb.fBinary=TRUE;//二进制通信, 非字符通信
+	dcb.fOutxDsrFlow = 0 ;
+	dcb.fDtrControl = DTR_CONTROL_ENABLE ;
+	dcb.fOutxCtsFlow = 0 ;
+	dcb.fRtsControl = RTS_CONTROL_ENABLE ;
+	dcb.fInX = dcb.fOutX = 1 ;
+	dcb.XonChar = 0X11 ;
+	dcb.XoffChar = 0X13 ;
+	dcb.XonLim = 100 ;
+	dcb.XoffLim = 100 ;
+	dcb.fParity = TRUE ;
+
+	//根据设备控制块配置通信设备
+	SetCommState(/*COMFileTemp*/data->hCom, &dcb ) ;
 
 	data->inportlen = 128;
 	data->outportlen = 128;
