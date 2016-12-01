@@ -183,7 +183,7 @@ UINT  ReadThreadFunction(LPVOID lpParameter)
 	char buf[128];
 	struct readData data;	
 	data.size = 1024;
-	data.buf = (char*)malloc(data.size);
+	data.buf = (char*)malloc(data.size+1);
 	ASSERT(data.buf);
 	data.len  = 0;
 	data.hand = threaddata->hWnd;
@@ -194,8 +194,12 @@ UINT  ReadThreadFunction(LPVOID lpParameter)
 
 	threaddata->run++;
 	while(threaddata->run > 0){
+
 		ULONG len = data.inportlen;
-		if(!CH9326ReadThreadData(threaddata->hCom, data.buf, &len) ) {
+		if(len && !CH9326ReadThreadData(threaddata->hCom, data.buf, &len) ) {
+			Sleep(100);
+			continue;
+		}else{
 			Sleep(100);
 			continue;
 		}
@@ -334,18 +338,23 @@ unsigned char HIDSpeed(unsigned speed)
 
 int HIDClose(struct readThreadData *data)
 {
-	CH9326CloseDevice(data->hCom);
+	if(data->hCom != INVALID_HANDLE_VALUE)
+		CH9326CloseDevice(data->hCom);
 
 	data->run = 0;
 	while(data->run >= 0);
 		Sleep(100);
-
+	
 	data->hCom = INVALID_HANDLE_VALUE;
 	return 0;
 }
 
 int HIDOpen(CString name, unsigned speed, struct readThreadData *data)
-{
+{/*
+	data->inportlen = 32;
+	data->outportlen = 32;
+	data->hCom = (HANDLE)32;
+	return HIDStartRead(data);*/
 	HANDLE hHID = INVALID_HANDLE_VALUE;
 
 	hHID = CH9326OpenDevicePath((PCHAR)LPCTSTR (name.GetBuffer()));
@@ -365,16 +374,18 @@ int HIDOpen(CString name, unsigned speed, struct readThreadData *data)
 	char version[100]="";
 	sprintf(version,"设备已连接,VID=%XPID=%X VER=%X ",VID,PID,VER);
 		
-	USHORT inportlen,outportlen;
+	USHORT inportlen = 0, outportlen = 0;
 	
-	CH9326GetBufferLen(hHID,&inportlen,&outportlen);
-	CH9326SetTimeOut(hHID,3000,3000);
+	if(VID == USB_VID && PID == USB_PID){
+		CH9326GetBufferLen(hHID,&inportlen,&outportlen);
+		CH9326SetTimeOut(hHID,3000,3000);
+		CH9326SetRate(hHID, HIDSpeed(speed), 4, 1, 4, 48);
+	}
 
 	data->inportlen = inportlen;
 	data->outportlen = outportlen;
 	data->hCom = hHID;
 
-	CH9326SetRate(hHID, HIDSpeed(speed), 4, 1, 4, 48);
 	data->run = 1;
 	HIDStartRead(data);
 	return 0;

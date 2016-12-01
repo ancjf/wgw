@@ -642,24 +642,27 @@ void InitSelDev(CComboBox *CCombox)
 					continue;
 				}
 				
-#if DEBUG_TEST
+#if !DEBUG_TEST
 				_HIDD_ATTRIBUTES hidAttributes;
 				if(!HidD_GetAttributes(hHID, &hidAttributes)) {
 					CloseHandle(hHID);
+					deviceNo++;
 					continue;
 				}
 
 				if (USB_VID != hidAttributes.VendorID || USB_PID != hidAttributes.ProductID) {
+					deviceNo++;
 					continue;
 				}
 #endif
 				CharUpperBuff(buf,strlen(buf));
 				CCombox->InsertString(0,(const char *)buf);
 				CloseHandle(hHID);
+				deviceNo++;
 				
 			}
-			deviceNo++;
-		
+			
+			break;
 	}
 	
 }
@@ -805,7 +808,10 @@ void CwgwDlg::sendComMsg(CMscomm1 *com, const CString &msg)
 	int len = out.GetLength();
 	msgAppend(debug, out.GetBuffer(), len);
 	//putOutput(com, out);
-	com->put_Output(COleVariant(out));
+	if(threadData.hCom == INVALID_HANDLE_VALUE)
+		com->put_Output(COleVariant(out));
+	else
+		HIDWrite(threadData.hCom, out.GetBuffer(), len, 0);
 }
 
 void CwgwDlg::sendComMsg(CMscomm1 *com, const TCHAR *msg)
