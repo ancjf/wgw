@@ -60,3 +60,21 @@ unsigned chrMask();
 
 #define USB_VID 0x1A86
 #define USB_PID 0xE010
+
+class msgBuffer
+{
+public:
+	msgBuffer(unsigned size = 2048);
+	~msgBuffer();
+
+	bool addInput(char *buf, unsigned len);
+protected:
+	unsigned getMsg();
+	int getMsgOne(char *buf, unsigned len);
+	char* getMsgStart(char *buf, unsigned len);
+	int processMsg(char *start, unsigned size, unsigned len);
+private:
+	char *m_buf;
+	unsigned m_size;
+	unsigned m_len;
+};
