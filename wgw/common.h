@@ -43,8 +43,8 @@ struct answerItem
 
 struct readThreadData
 {
-	bool runing;
-	bool exit;
+	volatile long runing;
+	volatile long exit;
 
 	HWND hWnd;
 	HANDLE hCom;

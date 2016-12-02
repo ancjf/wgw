@@ -78,6 +78,8 @@ int HIDWrite(HANDLE hand, const char *buf, unsigned len, bool isCH9326)
 	data->hand = hand;
 	data->isCH9326 = isCH9326;
 	memcpy(data->data, buf, len);
+
+	return SendThreadFunction(data);
 	AfxBeginThread(SendThreadFunction, data, THREAD_PRIORITY_NORMAL, 0, 0, NULL); 
 	return 0;
 }
@@ -220,7 +222,7 @@ UINT  ReadThreadFunction(LPVOID lpParameter)
 		data.inportlen = sizeof(buf);
 	data.outportlen = threaddata->outportlen;
 
-	threaddata->runing = true;
+	InterlockedExchange(&threaddata->runing, 1);
 	while(!threaddata->exit){
 
 		ULONG len = data.inportlen;
@@ -248,15 +250,15 @@ UINT  ReadThreadFunction(LPVOID lpParameter)
 
 	
 	free(data.buf);
-	threaddata->runing = false;
+	InterlockedExchange(&threaddata->runing, 0);
 	//AfxEndThread(0);
 	return 0;
 }
 
 int HIDStartRead(struct readThreadData *threaddata)
 {
-	threaddata->exit = false;
-	threaddata->runing = false;
+	InterlockedExchange(&threaddata->exit, 0);
+	InterlockedExchange(&threaddata->runing, 0);
 	threaddata->thread = AfxBeginThread(ReadThreadFunction, threaddata, THREAD_PRIORITY_NORMAL, 0, 0, NULL); 
 	return 0;
 }
@@ -391,7 +393,7 @@ int COMClose(struct readThreadData *data)
 
 int HIDClose(struct readThreadData *data)
 {
-	data->exit = true;
+	InterlockedExchange(&data->exit, 1);
 
 	if(data->isCH9326){
 		if(data->hCom != INVALID_HANDLE_VALUE){
@@ -404,7 +406,7 @@ int HIDClose(struct readThreadData *data)
 
 	for(int i = 0; i < 100; i++){
 		Sleep(10);
-		if(!data->runing)
+		if(!InterlockedExchange(&data->runing, data->runing))
 			break;
 	}
 
