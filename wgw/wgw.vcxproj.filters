@@ -54,16 +54,19 @@
     <ClInclude Include="sqlite3ext.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="common.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="DlgCheck.h">
-      <Filter>源文件</Filter>
+      <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="DlgAnswer.h">
-      <Filter>源文件</Filter>
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="WorkThread.h">
+      <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="DlgOther.h">
-      <Filter>源文件</Filter>
-    </ClInclude>
-    <ClInclude Include="common.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -99,6 +102,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="common.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="WorkThread.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

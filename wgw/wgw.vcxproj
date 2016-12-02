@@ -120,6 +120,7 @@
     <ClInclude Include="targetver.h" />
     <ClInclude Include="wgw.h" />
     <ClInclude Include="wgwDlg.h" />
+    <ClInclude Include="WorkThread.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="common.cpp" />
@@ -139,6 +140,7 @@
     </ClCompile>
     <ClCompile Include="wgw.cpp" />
     <ClCompile Include="wgwDlg.cpp" />
+    <ClCompile Include="WorkThread.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="wgw.rc" />

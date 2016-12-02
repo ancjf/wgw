@@ -78,3 +78,5 @@ private:
 	unsigned m_size;
 	unsigned m_len;
 };
+
+unsigned char HIDSpeed(unsigned speed);

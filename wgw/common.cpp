@@ -2,6 +2,55 @@
 
 #include "stdafx.h"
 
+unsigned char HIDSpeed(unsigned speed)
+{
+	//1=300(ucRate为1时对应波特率300),2=600,3=1200,4=2400,5=4800,6=9600(默认值),7=14400,
+	//	8=19200,9=28800,10=38400,11=57600,12=76800,13=115200
+	unsigned char	ucRate = 6;
+	switch(speed){
+		case 300:
+			ucRate = 1;
+			break;
+		case 600:
+			ucRate = 2;
+			break;
+		case 1200:
+			ucRate = 3;
+			break;
+		case 2400:
+			ucRate = 4;
+			break;
+		case 4800:
+			ucRate = 5;
+			break;
+		case 9600:
+			ucRate = 6;
+			break;
+		case 14400:
+			ucRate = 7;
+			break;
+		case 19200:
+			ucRate = 8;
+			break;
+		case 28800:
+			ucRate = 9;
+			break;
+		case 38400:
+			ucRate = 10;
+			break;
+		case 57600:
+			ucRate = 11;
+			break;
+		case 76800:
+			ucRate = 12;
+			break;
+		case 115200:
+			ucRate = 13;
+			break;
+	}
+
+	return ucRate;
+}
 
 unsigned chrMask()
 {
