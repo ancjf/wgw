@@ -117,6 +117,7 @@ int msgBuffer::processMsg(char *start, unsigned size, unsigned len)
 
 int msgBuffer::getMsgOne(char *buf, unsigned len)
 {
+	CString debug;
 	char* start = getMsgStart(buf, len);
 	if(!start)
 		return 0;
@@ -125,7 +126,8 @@ int msgBuffer::getMsgOne(char *buf, unsigned len)
 		case TEXT('\x2'):	//答题对
 			return processMsg(start, len, 18);
 		case TEXT('\x5'):	//考勤
-			return processMsg(start, len, 14);
+			msgXData(debug, start, 15);
+			return processMsg(start, len, 15);
 		case TEXT('\x4'):	//开考勤
 		case TEXT('\x6'):	//关考勤
 		case TEXT('\x1'):	//开答题
@@ -177,4 +179,19 @@ bool msgBuffer::addInput(char *buf, unsigned size)
 	m_len -= len;
 	memmove(m_buf, m_buf+len, m_len);
 	return true;
+}
+
+void msgXData(CString &str, TCHAR *in, unsigned len)
+{
+	unsigned mask = chrMask();
+
+	TCHAR buffer[2048];
+
+	ASSERT(sizeof(buffer)/sizeof(buffer[0]) > len+1);
+	unsigned i;
+	for(i = 0; i < len; i++){
+		_stprintf(buffer + 2*i, TEXT("%02x"), chrVal(in[i]));
+	}
+
+	str = CString(buffer) + TEXT("\r\n") + str;
 }

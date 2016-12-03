@@ -7,6 +7,8 @@
 #include "DlgAnswer.h"
 #include "DlgCheck.h"
 #include "DlgOther.h"
+#include "WorkThread.h"
+
 #include <map>
 #include <vector>
 
@@ -47,10 +49,7 @@ protected:
 
 	void GetComLis(CComboBox * CCombox);
 
-	TCHAR *getMsgStart(TCHAR *in, unsigned len);
-	void msgAppend(CString &str, TCHAR *in, unsigned len);
 	int getMsgOne(TCHAR *in, unsigned len);
-	unsigned getMsg(TCHAR *in, unsigned len, CString &str);
 
 	void putOutput(CMscomm1 *com, const CString &msg);
 	int processMsgCheck(TCHAR *in);
@@ -93,6 +92,8 @@ private:
 	vector<struct answerItem> m_answerVec;
 
 	struct readThreadData threadData;
+
+	CWorkThread *m_pCommThread;
 public:
 	afx_msg void OnBnClickedCheckon();
 	afx_msg void OnBnClickedCheckoff();

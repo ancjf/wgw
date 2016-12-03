@@ -66,7 +66,7 @@ int CDlgAnswer::insertAnswer(struct answerItem &item)
 	m_listAnswer.SetItemText(lvitemAdd.iItem, 2, item.answer);
 
 	CTime tm = CTime(0) + CTimeSpan(item.time);
-	str = tm.Format(TEXT("%Y-%m-%d:%X"));
+	str = tm.Format(TIME_FORMAT);
 	m_listAnswer.SetItemText(lvitemAdd.iItem, 3, str);
 
 	str.Format(TEXT("%d"), item.electricity);

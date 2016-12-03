@@ -12,6 +12,7 @@
 
 #include <vector>
 #include "hid.h"
+#include "WorkThread.h"
 
 #include "CH9326DBG.h"
 #include "CH9326DLL.H"
@@ -51,10 +52,16 @@ UINT  SendThreadFunction(LPVOID lpParameter)
 	struct sendData *data  = (struct sendData *)lpParameter;
 
 	if(data->isCH9326){
+
+		CString debug;
+		msgXData(debug, data->data, data->len);
+
 		HANDLE hEventObject=CreateEvent(NULL,TRUE,TRUE, "");
-		CH9326WriteData(data->hand, data->data, data->len, hEventObject);
+		if(!CH9326WriteData(data->hand, data->data, data->len, hEventObject))
+			AfxMessageBox("发送数据失败!");
+
 		CloseHandle(hEventObject);
-		free(data);
+		//free(data);
 	}else{
 		DWORD dwReadSize = 0;
 		bool ret = WriteFile(data->hand, data->data, data->len, &dwReadSize, NULL);
@@ -189,28 +196,21 @@ void addInput(struct readData *data, char *buf, long size)
 	memmove(data->buf, data->buf+len, data->len);
 }
 
-void msgXData(CString &str, TCHAR *in, unsigned len)
-{
-	unsigned mask = chrMask();
-
-	TCHAR buffer[2048];
-
-	ASSERT(sizeof(buffer)/sizeof(buffer[0]) > len+1);
-	unsigned i;
-	for(i = 0; i < len; i++){
-		_stprintf(buffer + 2*i, TEXT("%02x"), chrVal(in[i]));
-	}
-
-	str = CString(buffer) + TEXT("\r\n") + str;
-}
-
 UINT  ReadThreadFunction(LPVOID lpParameter)
 {
 	struct readThreadData *threaddata = (struct readThreadData *)lpParameter;
 
 	HANDLE hCom = threaddata->hCom;
 	bool isCH9326 = threaddata->isCH9326;
-	char buf[128];
+	if(isCH9326){
+		/*
+		if(!CH9326InitThreadData(hCom)){
+			InterlockedExchange(&threaddata->runing, 0);
+			return 0;
+		}*/
+	}
+
+	char buf[1024];
 	struct readData data;	
 	data.size = 1024;
 	data.buf = (char*)malloc(data.size+1);
@@ -222,16 +222,18 @@ UINT  ReadThreadFunction(LPVOID lpParameter)
 		data.inportlen = sizeof(buf);
 	data.outportlen = threaddata->outportlen;
 
+	class msgBuffer msgbuffer;
 	InterlockedExchange(&threaddata->runing, 1);
+	CH9326ClearThreadData(hCom);
 	while(!threaddata->exit){
 
-		ULONG len = data.inportlen;
+		ULONG len = sizeof(buf);
 		if(!len){
 			break;
 		}
 
 		if(isCH9326){
-			if(!CH9326ReadThreadData(hCom, data.buf, &len) ) {
+			if(!CH9326ReadThreadData(hCom, buf, &len) ) {
 				break;
 			}
 				
@@ -241,10 +243,8 @@ UINT  ReadThreadFunction(LPVOID lpParameter)
 			}
 		}
 
-		CString debug;
 		if(len){
-			msgXData(debug, buf, len);
-			addInput(&data, buf, len);
+			msgbuffer.addInput(buf, len);
 		}
 	}
 
@@ -344,6 +344,11 @@ int COMClose(struct readThreadData *data)
 
 int HIDClose(struct readThreadData *data)
 {
+	CWorkThread *thread = (CWorkThread *)data->threadReal;
+	if(thread->close())
+		return 0;
+	return -1;
+
 	InterlockedExchange(&data->exit, 1);
 
 	if(data->isCH9326){
@@ -355,14 +360,14 @@ int HIDClose(struct readThreadData *data)
 		COMClose(data);
 	}
 
-	for(int i = 0; i < 100; i++){
+	for(int i = 0; i < 10000000; i++){
 		Sleep(10);
 		if(!InterlockedExchange(&data->runing, data->runing))
 			break;
 	}
 
-	if(data->runing)
-		TerminateThread(data->thread, 0);
+	//if(data->runing)
+		//TerminateThread(data->thread, 0);
 
 	return 0;
 }
@@ -445,13 +450,18 @@ int HIDOpen(CString name, unsigned speed, struct readThreadData *data)
 	data->outportlen = 32;
 	data->hCom = (HANDLE)32;
 	return HIDStartRead(data);*/
+	CWorkThread *thread = (CWorkThread *)data->threadReal;
+	if(thread->open(name, speed))
+		return 0;
+	return -1;
+
 	int err = COMOpen(name, speed, data);
 	if(0 >= err)
 		return err;
 
 	HANDLE hHID = INVALID_HANDLE_VALUE;
 
-	hHID = CH9326OpenDevicePath((PCHAR)LPCTSTR (name.GetBuffer()));
+	hHID = CH9326OpenDevicePath((PCHAR)LPCTSTR (name));
 	if(hHID==INVALID_HANDLE_VALUE)
 	{
 		AfxMessageBox("打开HID设备失败");
@@ -473,13 +483,24 @@ int HIDOpen(CString name, unsigned speed, struct readThreadData *data)
 	if(VID == USB_VID && PID == USB_PID){
 		CH9326GetBufferLen(hHID,&inportlen,&outportlen);
 		CH9326SetTimeOut(hHID,3000,3000);
-		CH9326SetRate(hHID, HIDSpeed(speed), 4, 1, 4, 48);
+		if(!CH9326SetRate(hHID, HIDSpeed(speed), 4, 1, 4, 48)){
+			CH9326CloseDevice(hHID);
+			AfxMessageBox("设置不成功!");
+			return -1;
+		}
+	}
+
+	if(!CH9326InitThreadData(hHID)){
+		CH9326CloseDevice(hHID);
+		AfxMessageBox("初始化不成功!");
+		return -1;
 	}
 
 	data->inportlen = inportlen;
 	data->outportlen = outportlen;
 	data->hCom = hHID;
 	data->isCH9326 = true;
+
 
 	HIDStartRead(data);
 	return 0;

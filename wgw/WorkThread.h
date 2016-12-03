@@ -12,8 +12,6 @@ struct handType
 	handType(){hand = INVALID_HANDLE_VALUE; isCH9326 = false;};
 	HANDLE hand;
 	bool isCH9326;
-
-
 };
 
 // CWorkThread
@@ -41,11 +39,17 @@ protected:
 	void getInput(vector<void *> &m_output);
 	virtual int Run();
 	int WriteCommBlock(HANDLE hand, bool isCH9326, void *outbuf);
-	int ReadCommBlock(HANDLE COMFile, bool isCH9326);
+	int WriteCommCh9326(HANDLE COMFile, char *data, unsigned len);
+
+	int ReadCommBlock(HANDLE COMFile);
+	int ReadComm(HANDLE COMFile, bool isCH9326);
+	int ReadCommCH9326(HANDLE COMFile);
+
 	HANDLE ConnectComm(int nPort, unsigned speed);
 	BOOL CloseComm(HANDLE COMFile);
 	bool setHand(HANDLE hand, bool isCH9326);
 	int COMOpen(CString name, unsigned speed);
+
 private:
 	HANDLE m_hMutex;
 

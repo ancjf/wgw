@@ -121,7 +121,17 @@ void CWorkThread::getInput(vector<void *> &output)
 	m_mutex.Unlock();
 }
 
-int CWorkThread::ReadCommBlock(HANDLE COMFile, bool isCH9326)
+int CWorkThread::ReadCommCH9326(HANDLE COMFile)
+{
+	char buf[1024];
+	ULONG len = sizeof(buf);
+
+	if(CH9326ReadThreadData(COMFile, buf, &len) && len)
+		m_msgBuffer.addInput(buf, len);
+
+	return 0;
+}
+int CWorkThread::ReadCommBlock(HANDLE COMFile)
 {
 	char buf[128];
 	DWORD dwErrorFlags;
@@ -163,6 +173,28 @@ int CWorkThread::ReadCommBlock(HANDLE COMFile, bool isCH9326)
 	return ( dwLength ) ;
 }
 
+int CWorkThread::ReadComm(HANDLE COMFile, bool isCH9326)
+{
+	if(isCH9326)
+		return ReadCommCH9326(COMFile);
+
+	DWORD dwEvtMask = 0 ; 
+	WaitCommEvent(COMFile, &dwEvtMask, &ShareEvent);//等待串口事件
+	if ((dwEvtMask & EV_RXCHAR) == EV_RXCHAR) {
+		ReadCommBlock(COMFile);
+	}
+}
+
+int CWorkThread::WriteCommCh9326(HANDLE COMFile, char *data, unsigned len)
+{
+	bool ret;
+	HANDLE hEventObject=CreateEvent(NULL,TRUE,TRUE, "");
+	ret = CH9326WriteData(COMFile, data, len, hEventObject);
+
+	CloseHandle(hEventObject);
+	return ret;
+}
+
 int CWorkThread::WriteCommBlock(HANDLE COMFile, bool isCH9326, void *outbuf)
 {
 	uint32_t *pbuf = (uint32_t *)outbuf;
@@ -172,6 +204,8 @@ int CWorkThread::WriteCommBlock(HANDLE COMFile, bool isCH9326, void *outbuf)
 	if (NULL == pOutData || nDataLen < 1)
 		return FALSE;
 
+	if(isCH9326)
+		return WriteCommCh9326(COMFile, (char*)(pbuf+1), nDataLen);
 	//while(nDataLen > 0){
 	DWORD nLen = 0;
 	if (! WriteFile(COMFile, (LPCVOID)pOutData, nDataLen, &nLen, &/*ShareEvent*/osWrite)) {
@@ -212,10 +246,11 @@ int CWorkThread::Run()
 			continue;
 		}
 
-		DWORD nResutl = WaitForMultipleObjectsEx(2, hEventArr, FALSE, 200, TRUE/*INFINITE*/);
+		DWORD nResutl = WaitForMultipleObjectsEx(2, hEventArr, FALSE, 10, TRUE/*INFINITE*/);
 		if(0 == nResutl){
 			getInput(output);
 		}else if(1 == nResutl){
+			getInput(output);
 			itr = output.begin();
 			while(itr != output.end()){
 				if(WriteCommBlock(COMFile, isCH9326, *itr))
@@ -225,12 +260,7 @@ int CWorkThread::Run()
 			}
 		}
 
-		DWORD dwEvtMask = 0 ; 
-		WaitCommEvent( COMFile, &dwEvtMask, &ShareEvent);//等待串口事件
-		if ((dwEvtMask & EV_RXCHAR) == EV_RXCHAR) {
-			ReadCommBlock(COMFile, isCH9326);
-			
-		}
+		ReadComm(COMFile, isCH9326);
 	}
 
 	//子线程结束
@@ -372,14 +402,14 @@ bool CWorkThread::open(CString name, unsigned speed)
 	if(hHID == INVALID_HANDLE_VALUE)
 	{
 		AfxMessageBox("打开HID设备失败");
-		return -1;
+		return false;
 	}
 
 	USHORT VID,PID,VER;
 	//获取厂商ID和设备ID
 	if(!CH9326GetAttributes(hHID,&VID,&PID,&VER)){
 		CH9326CloseDevice(hHID);
-		return -1;
+		return false;
 	}
 
 	char version[100]="";
@@ -388,7 +418,17 @@ bool CWorkThread::open(CString name, unsigned speed)
 	if(VID == USB_VID && PID == USB_PID){
 		CH9326GetBufferLen(hHID,&m_inportlen,&m_outportlen);
 		CH9326SetTimeOut(hHID,3000,3000);
-		CH9326SetRate(hHID, HIDSpeed(speed), 4, 1, 4, 48);
+		if(!CH9326SetRate(hHID, HIDSpeed(speed), 4, 1, 4, 48)){
+			CH9326CloseDevice(hHID);
+			AfxMessageBox("设置不成功!");
+			return false;
+		}
+	}
+
+	if(!CH9326InitThreadData(hHID)){
+		CH9326CloseDevice(hHID);
+		AfxMessageBox("初始化不成功!");
+		return false;
 	}
 
 	setHand(hHID, true);

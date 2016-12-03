@@ -44,21 +44,29 @@ BOOL CDlgCheck::OnInitDialog(void)
     m_listCheck.InsertColumn(2,TEXT("第一次收到时间"),LVCFMT_LEFT,140);
     m_listCheck.InsertColumn(3,TEXT("最后一次收到时间"),LVCFMT_LEFT,140);
     m_listCheck.InsertColumn(4,TEXT("答题卡电量"),LVCFMT_LEFT,100);
+	m_listCheck.InsertColumn(5,TEXT("正常包数"),LVCFMT_LEFT,100);
+	m_listCheck.InsertColumn(6,TEXT("误码包数"),LVCFMT_LEFT,100);
 	return TRUE;
 }
 
 int CDlgCheck::updateCheck(const struct checkItem *item)
 {
 	CTime tm = CTime(0) + CTimeSpan(item->firstTime);
-	CString str = tm.Format(TEXT("%Y-%m-%d:%X"));
+	CString str = tm.Format(TIME_FORMAT);
 	m_listCheck.SetItemText(item->nindex, 2, str);
 
 	tm = CTime(0) + CTimeSpan(item->lastTime);
-	str = tm.Format(TEXT("%Y-%m-%d:%X"));
+	str = tm.Format(TIME_FORMAT);
 	m_listCheck.SetItemText(item->nindex, 3, str);
 
 	str.Format(TEXT("%d"), item->electricity);
 	m_listCheck.SetItemText(item->nindex, 4, str);
+
+	str.Format(TEXT("%d"), item->count);
+	m_listCheck.SetItemText(item->nindex, 5, str);
+
+	str.Format(TEXT("%d"), item->errCount);
+	m_listCheck.SetItemText(item->nindex, 6, str);
 	
 	return 0;
 }
@@ -83,6 +91,9 @@ int CDlgCheck::insertCheck(struct checkItem *item)
 
 int CDlgCheck::processMsgCheck(TCHAR *in)
 {
+	CString debug;
+	msgXData(debug, in, 14);
+
 	struct checkItem item;
 	in += 3;
 	int checkcode = 0;
@@ -100,11 +111,12 @@ int CDlgCheck::processMsgCheck(TCHAR *in)
 	if(item.electricity < 0)
 		item.electricity = 6;
 
-	int ii = in[11];
-	if(checkcode != in[11]){
-		//return 0;
-		item.electricity = 9;
+	bool codeerr = (in[11] != checkcode);
+	if(codeerr){
+		item.errCount++;
 		//_tcscpy(item.id, TEXT("CHECKCODEERR"));
+	}else{
+		item.count++;
 	}
 
 	map<CString, struct checkItem>::iterator iter;
@@ -120,6 +132,12 @@ int CDlgCheck::processMsgCheck(TCHAR *in)
 			c.firstTime = t;
 		}else{
 			c.lastTime = t;
+		}
+
+		if(codeerr){
+			c.errCount++;
+		}else{
+			c.count++;
 		}
 
 		return updateCheck(&c);

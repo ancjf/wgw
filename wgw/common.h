@@ -14,14 +14,14 @@ struct checkItem
 	TCHAR id[16];
 	uint64_t firstTime;
 	uint64_t lastTime;
+
+	unsigned count;
+	unsigned errCount;
+
 	int electricity;
 	int nindex;
 	checkItem(){
-		nindex = 0;
-		firstTime = 0;
-		lastTime = 0;
-		electricity = 0;
-		memset(id, 0, sizeof(id));
+		memset(this, 0, sizeof(*this));
 	}
 };
 
@@ -53,6 +53,8 @@ struct readThreadData
 	bool isCH9326;
 	unsigned inportlen;
 	unsigned outportlen;
+
+	CWinThread* threadReal;
 };
 
 unsigned chrVal(TCHAR c);
@@ -80,3 +82,7 @@ private:
 };
 
 unsigned char HIDSpeed(unsigned speed);
+void msgXData(CString &str, TCHAR *in, unsigned len);
+
+
+#define TIME_FORMAT (TEXT("%Y-%m-%d %X"))

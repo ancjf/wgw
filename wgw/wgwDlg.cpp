@@ -25,246 +25,34 @@ extern "C" {
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
 
-static int CALLBACK MyCompareProc(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort)
-{
-	int row1 = (int) lParam1;
-	int row2 = (int) lParam2;
-
-	CListCtrl* lc = (CListCtrl*)lParamSort;
-
-	CString lp1 = lc->GetItemText(row1, 0);
-	CString lp2 = lc->GetItemText(row2, 0);
-	
-	int n1 = _tstoi(lp1);
-	int n2 = _tstoi(lp2);
-	return n2-n1;
-}
-
-TCHAR *CwgwDlg::getMsgStart(TCHAR *in, unsigned len)
-{
-	for(unsigned i = 0; i < len; i++){
-		if(in[i] == MSG_BEGIN && i+2 < len)
-			return in+i;
-	}
-
-	return 0;
-}
-
-void CwgwDlg::msgAppend(CString &str, TCHAR *in, unsigned len)
-{
-	unsigned mask = chrMask();
-
-	TCHAR buffer[2048];
-
-	ASSERT(sizeof(buffer)/sizeof(buffer[0]) > len+1);
-	unsigned i;
-	for(i = 0; i < len; i++){
-		_stprintf(buffer + 2*i, TEXT("%02x"), chrVal(in[i]));
-	}
-
-	str = CString(buffer) + TEXT("\r\n") + str;
-}
-
-int CwgwDlg::updateCheck(const struct checkItem &item)
-{
-	CTime tm = CTime(0) + CTimeSpan(item.firstTime);
-	CString str = tm.Format(TEXT("%Y-%m-%d:%X"));
-	m_listCheck.SetItemText(item.nindex, 2, str);
-
-	tm = CTime(0) + CTimeSpan(item.lastTime);
-	str = tm.Format(TEXT("%Y-%m-%d:%X"));
-	m_listCheck.SetItemText(item.nindex, 3, str);
-
-	str.Format(TEXT("%d"), item.electricity);
-	m_listCheck.SetItemText(item.nindex, 4, str);
-	
-	return 0;
-}
-
-int CwgwDlg::insertCheck(struct checkItem &item)
-{
-	LV_ITEM    lvitemAdd = {0};
-	lvitemAdd.iItem = m_listCheck.GetItemCount();
-	if (m_listCheck.InsertItem(&lvitemAdd) == -1)
-		return -1;
-
-	item.nindex = lvitemAdd.iItem;
-
-	CString str;
-	str.Format(TEXT("%d"), item.nindex);
-
-	m_listCheck.SetItemText(item.nindex, 0, str);
-	m_listCheck.SetItemText(item.nindex, 1, item.id);
-	m_checkMap[CString(item.id)] = item;
-	return updateCheck(item);
-}
-
-int CwgwDlg::insertAnswer(struct answerItem &item)
-{
-	LV_ITEM    lvitemAdd = {0};
-	lvitemAdd.iItem = m_listAnswer.GetItemCount();
-	if (m_listAnswer.InsertItem(&lvitemAdd) == -1)
-		return -1;
-
-	m_listAnswer.SetItemData(lvitemAdd.iItem, lvitemAdd.iItem);
-	item.nindex = lvitemAdd.iItem;
-
-	CString str;
-	str.Format(TEXT("%d"), item.nindex);
-
-	m_listAnswer.SetItemText(item.nindex, 0, str);
-	m_listAnswer.SetItemText(item.nindex, 1, item.id);
-	m_listAnswer.SetItemText(item.nindex, 2, item.answer);
-
-	CTime tm = CTime(0) + CTimeSpan(item.time);
-	str = tm.Format(TEXT("%Y-%m-%d:%X"));
-	m_listAnswer.SetItemText(item.nindex, 3, str);
-
-	str.Format(TEXT("%d"), item.electricity);
-	m_listAnswer.SetItemText(item.nindex, 4, str);
-
-	//m_listAnswer.SortItems(MyCompareProc,(DWORD_PTR)&m_listAnswer);
-	m_answerVec.insert(m_answerVec.begin(), item);
-	updateAnswer();
-	return 0;
-}
-
-int CwgwDlg::updateAnswer(struct answerItem &item, int nindex)
-{
-	CString str;
-	str.Format(TEXT("%d"), item.nindex);
-
-	m_listAnswer.SetItemText(nindex, 0, str);
-	m_listAnswer.SetItemText(nindex, 1, item.id);
-	m_listAnswer.SetItemText(nindex, 2, item.answer);
-
-	CTime tm = CTime(0) + CTimeSpan(item.time);
-	str = tm.Format(TEXT("%Y-%m-%d:%X"));
-	m_listAnswer.SetItemText(nindex, 3, str);
-
-	str.Format(TEXT("%d"), item.electricity);
-	m_listAnswer.SetItemText(nindex, 4, str);
-
-	return 0;
-}
-
-int CwgwDlg::updateAnswer()
-{
-	int i = 0;
-	vector<struct answerItem>::iterator it;
-	for(it=m_answerVec.begin(); it!=m_answerVec.end();it++){
-		updateAnswer(*it, i++);
-	}
-
-	return 0;
-}
-
-int CwgwDlg::processMsgAnswer(TCHAR *in)
-{
-	struct answerItem item;
-	in += 3;
-	for(int i = 0; i<10; i++){
-		item.id[i] = TEXT('0') + in[i];
-		if(!_istdigit(item.id[i]))
-			item.id[i] = TEXT('F');
-	}
-
-	item.electricity = in[10];
-
-	if(in[11] == TEXT('\x1')){
-		//item.answer[0] = TEXT('\x2713');
-	}else if(in[11] == TEXT('\x2')){
-		//item.answer[0] = TEXT('\x2717');
-	}else{
-		for(int i = 0; i<4; i++){
-			TCHAR chr = (((in[11+i]&0xf0)>>4)-10)+TEXT('A');
-			if(!_istalpha(chr)){
-				break;
-			}
-			item.answer[2*i] = chr;
-			chr = ((in[11+i]&0xf)-10)+TEXT('A');
-			if(!_istalpha(chr))
-				break;
-			item.answer[2*i+1] = chr;
-		}
-	}
-
-	CTimeSpan span = CTime::GetCurrentTime() - CTime(0);
-	item.time = span.GetTotalSeconds();
-	return insertAnswer(item);
-}
-
-int CwgwDlg::processMsgCheck(TCHAR *in)
-{
-	struct checkItem item;
-	in += 3;
-	for(int i = 0; i<10; i++){
-		item.id[i] = TEXT('0') + in[i];
-		if(!_istdigit(item.id[i]))
-			item.id[i] = TEXT('F');
-	}
-
-	item.id[10] = 0;
-	item.electricity = in[10];
-
-	map<CString, struct checkItem>::iterator iter;
-	iter = m_checkMap.find(CString(item.id));
-	if(iter != m_checkMap.end()){
-		struct checkItem &c = iter->second;
-		CTimeSpan span = CTime::GetCurrentTime() - CTime(0);
-		if(!c.firstTime){
-			c.firstTime = span.GetTotalSeconds();
-		}else{
-			c.lastTime = span.GetTotalSeconds();
-		}
-
-		return m_dlgCheck.updateCheck(&c);
-	}
-
-	return m_dlgCheck.insertCheck(&item);
-}
-
 int CwgwDlg::getMsgOne(TCHAR *in, unsigned len)
 {
-	CString debug;
-	msgAppend(debug, in, len);
-
-	TCHAR *start = getMsgStart(in, len);
-	if(!start)
-		return 0;
-
-	switch(start[2]){
+	switch(in[2]){
 		case TEXT('\x2'):	//答题对
-			if(start + 18 > in + len)
-				return 0;
 			setOpenAnswerEd(true);
-			m_dlgAnswer.processMsgAnswer(start);
+			m_dlgAnswer.processMsgAnswer(in);
 			//m_dlgOther.msgAppend(start, 6);
 			//msgAppend(m_editOther, start, 18);
 			//msgAppend(m_editAnswer, start, 18);
-			return (start - in) + 18;
+			return 0;
 		case TEXT('\x5'):	//考勤
-			if(start + 14 > in + len)
-				return 0;
 			setCheckOn(true);
-			m_dlgCheck.processMsgCheck(start);
+			m_dlgCheck.processMsgCheck(in);
 			//msgAppend(str, start, 13);
-			return (start - in) + 14;
+			return 0;
 		case TEXT('\x4'):	//开考勤
 		case TEXT('\x6'):	//关考勤
-			setCheckOn(start[2] == TEXT('\x4'));
+			setCheckOn(in[2] == TEXT('\x4'));
 			//msgAppend(m_editAnswer, start, 3);
-			return (start - in) + 3;
+			return 0;
 		case TEXT('\x1'):	//开答题
 		case TEXT('\x3'):	//关答题
-			setOpenAnswerEd(start[2] == TEXT('\x1'));
+			setOpenAnswerEd(in[2] == TEXT('\x1'));
 			//msgAppend(str, start, 3);
-			return (start - in) + 3;
+			return 0;
 		case TEXT('\x7'):	//校时
-			if(start + 6 > in + len)
-				return 0;
-			m_dlgOther.msgAppend(start, 6);
-			return (start - in) + 6;
+			m_dlgOther.msgAppend(in, 6);
+			return 0;
 		default:
 			return -1;
 	}
@@ -272,26 +60,6 @@ int CwgwDlg::getMsgOne(TCHAR *in, unsigned len)
 	return -1;
 }
 
-unsigned CwgwDlg::getMsg(TCHAR *in, unsigned len, CString &str)
-{
-	int ret = 0;
-	
-	while(1){
-		ASSERT(len >= ret);
-		int err = getMsgOne(in+ret, len-ret);
-		if(0 > err){
-			ASSERT(len >= ret);
-			msgAppend(m_editOther, in+ret, len-ret);
-			return len;
-		}
-		if(0 == err)
-			return ret;
-
-		ret += err;
-	}
-	
-	return len;
-}
 
 void CwgwDlg::GetComLis(CComboBox * CCombox)
 {
@@ -484,6 +252,9 @@ BOOL CwgwDlg::OnInitDialog()
 
 	m_tabctrl.SetCurSel(0);
 
+	m_pCommThread = (CWorkThread *)AfxBeginThread(RUNTIME_CLASS(CWorkThread), 0, 0, CREATE_SUSPENDED);
+	m_pCommThread->ResumeThread();
+
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -566,29 +337,6 @@ BEGIN_EVENTSINK_MAP(CwgwDlg, CDialogEx)
 	ON_EVENT(CwgwDlg, IDC_MSCOMM1, 1, CwgwDlg::OnCommMscomm1, VTS_NONE)
 END_EVENTSINK_MAP()
 
-void CwgwDlg::addInString(TCHAR *str, long size)
-{
-	//CString debug;
-
-	ASSERT(size > 0);
-
-	//msgAppend(debug, str, size);
-	m_dataLen += size;
-	if(m_dataLen >= ARRAY_SIZE(m_buffer)){
-		m_dataLen = 0;
-		return;
-	}
-	
-	memcpy(m_buffer+ (m_dataLen - size), str, size*sizeof(TCHAR));
-	unsigned len = getMsg(m_buffer, m_dataLen, m_editOther);
-	if(!len)
-		return;
-
-	ASSERT(m_dataLen >= len);
-	m_dataLen -= len;
-	memmove(m_buffer, m_buffer+len, m_dataLen*sizeof(TCHAR));
-}
-
 void CwgwDlg::OnCommMscomm1()
 {
 	// TODO: 在此处添加消息处理程序代码
@@ -604,7 +352,7 @@ void CwgwDlg::OnCommMscomm1()
 			fs.GetElement(&k,str+k); //转换为BYTE型数组        
 		//m_EditReceive+=str;      // 接收到编辑框里面   //
 
-		addInString(str, datasize);
+		//addInString(str, datasize);
 		SetTimer(1,10,NULL);  //延时10ms    
 		UpdateData(false);
 	}
@@ -638,7 +386,7 @@ void InitSelDev(CComboBox *CCombox)
 				 hHID=CreateFile(buf,
 					GENERIC_READ|GENERIC_WRITE,
 					FILE_SHARE_READ|FILE_SHARE_WRITE,
-					NULL,OPEN_EXISTING, 0, NULL);
+					NULL,OPEN_EXISTING,FILE_FLAG_OVERLAPPED,NULL);
 				
 				if(hHID==INVALID_HANDLE_VALUE){
 					deviceNo++;
@@ -701,6 +449,8 @@ void CwgwDlg::OnBnClickedOpen()
 {
 	CString text;
 	GetDlgItemText(IDC_OPEN, text);
+
+	threadData.threadReal = m_pCommThread;
 	if(text != TEXT("打开")){
 		/*
 		if(threadData.hCom != INVALID_HANDLE_VALUE){
@@ -817,12 +567,11 @@ void CwgwDlg::sendComMsg(CMscomm1 *com, const CString &msg)
 	out.AppendChar((TCHAR)(rfid));
 	out = out + msg;
 
-	CString debug;
-	int len = out.GetLength();
-	msgAppend(debug, out.GetBuffer(), len);
+	int len = out.GetLength();;
 	//putOutput(com, out);
 
-	HIDWrite(threadData.hCom, out.GetBuffer(), len, threadData.isCH9326);
+	//HIDWrite(threadData.hCom, out.GetBuffer(), len, threadData.isCH9326);
+	m_pCommThread->addInput(out.GetBuffer(), len);
 	return;
 
 	if(threadData.hCom == INVALID_HANDLE_VALUE)
