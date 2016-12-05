@@ -192,23 +192,21 @@ BOOL CwgwDlg::OnInitDialog()
 	CComboBox * CCombox = (CComboBox *)GetDlgItem(IDC_SPEED);
 
 
-	CCombox->InsertString(0,   "110");
-	CCombox->InsertString(1,   "300");
-	CCombox->InsertString(2,   "600");
-	CCombox->InsertString(3,   "1200");
-	CCombox->InsertString(4,   "2400");
-	CCombox->InsertString(5,   "4800");
-	CCombox->InsertString(6,   "9600");
-	CCombox->InsertString(7,   "14400");
-	CCombox->InsertString(8,   "19200");
-	CCombox->InsertString(9,   "38400");
-	CCombox->InsertString(10,  "56000");
-	CCombox->InsertString(11,  "57600");
-	CCombox->InsertString(12,  "115200");
-	CCombox->InsertString(13,  "128000");
-	CCombox->InsertString(14,  "256000");
+	CCombox->AddString(_T("300"));
+	CCombox->AddString(_T("600"));
+	CCombox->AddString(_T("1200"));
+	CCombox->AddString(_T("2400"));
+	CCombox->AddString(_T("4800"));
+	CCombox->AddString(_T("9600"));
+	CCombox->AddString(_T("14400"));
+	CCombox->AddString(_T("19200"));
+	CCombox->AddString(_T("28800"));
+	CCombox->AddString(_T("38400"));
+	CCombox->AddString(_T("57600"));
+	CCombox->AddString(_T("76800"));
+	CCombox->AddString(_T("115200"));
 	
-	CCombox->SetCurSel(9);
+	CCombox->SelectString(0, _T("38400"));
 	CCombox->SelectString(0, id);
 
 	((CEdit*)GetDlgItem(IDC_RFID))->SetLimitText(2);
