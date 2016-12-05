@@ -190,12 +190,25 @@ BOOL CwgwDlg::OnInitDialog()
 	TCHAR id[16];
 	GetProfileString(TEXT("wgw"), TEXT("speed"), TEXT("01"), id, ARRAY_SIZE(id));
 	CComboBox * CCombox = (CComboBox *)GetDlgItem(IDC_SPEED);
-	CCombox->AddString(TEXT("9600"));
-	CCombox->AddString(TEXT("38400"));
-	CCombox->AddString(TEXT("115200"));
-	CCombox->AddString(TEXT("128000"));
+
+
+	CCombox->InsertString(0,   "110");
+	CCombox->InsertString(1,   "300");
+	CCombox->InsertString(2,   "600");
+	CCombox->InsertString(3,   "1200");
+	CCombox->InsertString(4,   "2400");
+	CCombox->InsertString(5,   "4800");
+	CCombox->InsertString(6,   "9600");
+	CCombox->InsertString(7,   "14400");
+	CCombox->InsertString(8,   "19200");
+	CCombox->InsertString(9,   "38400");
+	CCombox->InsertString(10,  "56000");
+	CCombox->InsertString(11,  "57600");
+	CCombox->InsertString(12,  "115200");
+	CCombox->InsertString(13,  "128000");
+	CCombox->InsertString(14,  "256000");
 	
-	CCombox->SetCurSel(0);
+	CCombox->SetCurSel(9);
 	CCombox->SelectString(0, id);
 
 	((CEdit*)GetDlgItem(IDC_RFID))->SetLimitText(2);
@@ -430,7 +443,7 @@ void CwgwDlg::OnBnClickedLink()
 	// Populate the list of serial ports.
 	EnumSerialPorts(asi,FALSE/*include all*/);
 	CCombox->ResetContent();
-	CCombox->SetDroppedWidth(300);
+	CCombox->SetDroppedWidth(520);
 	//CCombox->SendMessage(CB_SETITEMHEIGHT,100,600);
 	for (int ii=0; ii<asi.GetSize(); ii++) {
 		const CString &strPortName = asi[ii].strPortName;
