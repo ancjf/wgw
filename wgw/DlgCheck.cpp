@@ -29,6 +29,8 @@ void CDlgCheck::DoDataExchange(CDataExchange* pDX)
 
 
 BEGIN_MESSAGE_MAP(CDlgCheck, CDialogEx)
+	ON_NOTIFY(NM_RCLICK, IDC_LIST_DLG_CHECK, &CDlgCheck::OnNMRClickListDlgCheck)
+	ON_COMMAND(ID_WGW_CLEAR, &CDlgCheck::OnWgwClear)
 END_MESSAGE_MAP()
 
 
@@ -144,4 +146,27 @@ int CDlgCheck::processMsgCheck(TCHAR *in)
 	}
 
 	return insertCheck(&item);
+}
+
+void CDlgCheck::OnNMRClickListDlgCheck(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+	// TODO: 在此添加控件通知处理程序代码
+	CMenu popMenu;
+	popMenu.LoadMenu(IDR_WGW);
+	CPoint posMouse;
+	GetCursorPos(&posMouse);
+	CMenu* pSubMenu = NULL;
+	pSubMenu = popMenu.GetSubMenu(0);
+	pSubMenu->TrackPopupMenu(0, posMouse.x, posMouse.y, this);
+
+	*pResult = 0;
+}
+
+
+void CDlgCheck::OnWgwClear()
+{
+	// TODO: 在此添加命令处理程序代码
+	m_listCheck.DeleteAllItems();
+	m_checkMap.clear();
 }

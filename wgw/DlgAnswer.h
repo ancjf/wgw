@@ -34,4 +34,6 @@ public:
 	int updateAnswer();
 	int processMsgAnswer(TCHAR *in);
 	
+	afx_msg void OnNMRClickListDlgAnswer(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnWgwClear();
 };

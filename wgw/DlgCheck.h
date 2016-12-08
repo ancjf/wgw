@@ -31,4 +31,7 @@ public:
 private:
 	CListCtrl m_listCheck;
 	map<CString, struct checkItem> m_checkMap;
+public:
+	afx_msg void OnNMRClickListDlgCheck(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnWgwClear();
 };

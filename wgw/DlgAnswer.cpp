@@ -29,6 +29,8 @@ void CDlgAnswer::DoDataExchange(CDataExchange* pDX)
 
 
 BEGIN_MESSAGE_MAP(CDlgAnswer, CDialogEx)
+	ON_NOTIFY(NM_RCLICK, IDC_LIST_DLG_ANSWER, &CDlgAnswer::OnNMRClickListDlgAnswer)
+	ON_COMMAND(ID_WGW_CLEAR, &CDlgAnswer::OnWgwClear)
 END_MESSAGE_MAP()
 
 
@@ -143,3 +145,27 @@ int CDlgAnswer::processMsgAnswer(TCHAR *in)
 	return insertAnswer(item);
 }
 
+
+
+void CDlgAnswer::OnNMRClickListDlgAnswer(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+	// TODO: 在此添加控件通知处理程序代码
+	CMenu popMenu;
+	popMenu.LoadMenu(IDR_WGW);
+	CPoint posMouse;
+	GetCursorPos(&posMouse);
+	CMenu* pSubMenu = NULL;
+	pSubMenu = popMenu.GetSubMenu(0);
+	pSubMenu->TrackPopupMenu(0, posMouse.x, posMouse.y, this);
+
+	*pResult = 0;
+}
+
+
+void CDlgAnswer::OnWgwClear()
+{
+	// TODO: 在此添加命令处理程序代码
+	m_listAnswer.DeleteAllItems();
+	m_answerVec.clear();
+}

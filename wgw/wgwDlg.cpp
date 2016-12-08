@@ -206,7 +206,7 @@ BOOL CwgwDlg::OnInitDialog()
 	CCombox->AddString(_T("76800"));
 	CCombox->AddString(_T("115200"));
 	
-	CCombox->SelectString(0, _T("38400"));
+	CCombox->SelectString(0, _T("76800"));
 	CCombox->SelectString(0, id);
 
 	((CEdit*)GetDlgItem(IDC_RFID))->SetLimitText(2);
