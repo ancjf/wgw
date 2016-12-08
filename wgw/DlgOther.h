@@ -26,4 +26,5 @@ private:
 	CString m_editOther;
 public:
 	void CDlgOther::msgAppend(TCHAR *in, unsigned len);
+	afx_msg void OnEnChangeEdit1();
 };
