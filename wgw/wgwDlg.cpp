@@ -131,7 +131,6 @@ CwgwDlg::CwgwDlg(CWnd* pParent /*=NULL*/)
 void CwgwDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_MSCOMM1, m_ctrlComm);
 	//DDX_Text(pDX, IDC_EDIT_OTHER, m_editOther);
 	//DDX_Control(pDX, IDC_LIST_CHECK, m_listCheck);
 	//DDX_Control(pDX, IDC_LIST_ANSWER, m_listAnswer);
@@ -345,7 +344,6 @@ void CwgwDlg::OnBnClickedOpenanswer()
 }
 
 BEGIN_EVENTSINK_MAP(CwgwDlg, CDialogEx)
-	ON_EVENT(CwgwDlg, IDC_MSCOMM1, 1, CwgwDlg::OnCommMscomm1, VTS_NONE)
 END_EVENTSINK_MAP()
 
 void CwgwDlg::OnCommMscomm1()
