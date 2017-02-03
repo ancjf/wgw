@@ -107,6 +107,9 @@
     <ClCompile Include="WorkThread.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="tcpServer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="wgw.rc">
