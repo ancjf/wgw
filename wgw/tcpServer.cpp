@@ -4,6 +4,9 @@
 #pragma comment(lib, "libevent.lib") 
 #pragma comment(lib, "libevent_extras.lib") 
 
+#include <windows.h>
+#include <process.h>
+
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
@@ -33,11 +36,19 @@ static const int PORT = 9995;
 static void conn_writecb(struct bufferevent *bev, void *user_data)
 {
     struct evbuffer *output = bufferevent_get_output(bev);
-    if (evbuffer_get_length(output) == 0) 
-    {
+    if (evbuffer_get_length(output) == 0) {
         printf("flushed answer\n");
         bufferevent_free(bev);
     }
+}
+
+void conn_readcb(struct bufferevent *bev, void *ctx)
+{
+	char buffer[1024];
+
+	struct evbuffer *src = bufferevent_get_input(bev);
+	size_t len = bufferevent_read(bev, buffer, sizeof(buffer));
+	evbuffer_drain(src, len);
 }
 
 static void conn_eventcb(struct bufferevent *bev, short events, void *user_data)
@@ -63,7 +74,7 @@ static void signal_cb(evutil_socket_t sig, short events, void *user_data)
 
     printf("Caught an interrupt signal; exiting cleanly in two seconds.\n");
 
-    event_base_loopexit(base, &delay);
+    //event_base_loopexit(base, &delay);
 }
 
 static void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
@@ -79,14 +90,14 @@ static void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
         event_base_loopbreak(base);
         return;
     }
-    bufferevent_setcb(bev, NULL, conn_writecb, conn_eventcb, NULL);
+    bufferevent_setcb(bev, conn_readcb, conn_writecb, conn_eventcb, NULL);
     bufferevent_enable(bev, EV_WRITE);
     bufferevent_disable(bev, EV_READ);
 
     bufferevent_write(bev, MESSAGE, strlen(MESSAGE));
 }
 
-int tcpmain(int argc, char **argv)
+void tcpmain(void *argv)
 {
     struct event_base *base;
     struct evconnlistener *listener;
@@ -103,7 +114,7 @@ int tcpmain(int argc, char **argv)
     if (!base) 
     {
         fprintf(stderr, "Could not initialize libevent!\n");
-        return 1;
+        return;
     }
 
     memset(&sin, 0, sizeof(sin));
@@ -118,7 +129,7 @@ int tcpmain(int argc, char **argv)
     if (!listener) 
     {
         fprintf(stderr, "Could not create a listener!\n");
-        return 1;
+        return;
     }
 
     signal_event = evsignal_new(base, SIGINT, signal_cb, (void *)base);
@@ -126,7 +137,7 @@ int tcpmain(int argc, char **argv)
     if (!signal_event || event_add(signal_event, NULL)<0) 
     {
         fprintf(stderr, "Could not create/add a signal event!\n");
-        return 1;
+        return;
     }
 
     event_base_dispatch(base);
@@ -136,5 +147,11 @@ int tcpmain(int argc, char **argv)
     event_base_free(base);
 
     printf("done\n");
-    return 0;
+    return;
+}
+
+int beginServer()
+{
+	_beginthread(tcpmain, 0, 0);
+	return 0;
 }
