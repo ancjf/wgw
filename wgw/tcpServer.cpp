@@ -27,6 +27,9 @@
 #include "event2/event.h"
 
 #include <WinSock2.h>
+#include "tcpServer.h"
+
+IMPLEMENT_DYNCREATE(CTcpThread, CWinThread)
 
 static const char MESSAGE[] = "Hello, World!\n";
 
@@ -155,3 +158,33 @@ int beginServer()
 	_beginthread(tcpmain, 0, 0);
 	return 0;
 }
+
+
+CTcpThread::CTcpThread()
+{
+}
+
+CTcpThread::~CTcpThread()
+{
+}
+
+BOOL CTcpThread::InitInstance()
+{
+	// TODO: 在此执行任意逐线程初始化
+	return TRUE;
+}
+
+int CTcpThread::Run()
+{
+	return CWinThread::Run();
+}
+
+int CTcpThread::ExitInstance()
+{
+	// TODO: 在此执行任意逐线程清理
+
+	return CWinThread::ExitInstance();
+}
+
+BEGIN_MESSAGE_MAP(CTcpThread, CWinThread)
+END_MESSAGE_MAP()
