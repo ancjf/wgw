@@ -8,6 +8,7 @@
 #include "DlgCheck.h"
 #include "DlgOther.h"
 #include "WorkThread.h"
+#include "tcpServer.h"
 
 #include <map>
 #include <vector>
@@ -94,6 +95,7 @@ private:
 	struct readThreadData threadData;
 
 	CWorkThread *m_pCommThread;
+	CTcpThread *m_pTcpThread;
 public:
 	afx_msg void OnBnClickedCheckon();
 	afx_msg void OnBnClickedCheckoff();

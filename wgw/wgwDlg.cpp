@@ -265,6 +265,9 @@ BOOL CwgwDlg::OnInitDialog()
 	m_pCommThread = (CWorkThread *)AfxBeginThread(RUNTIME_CLASS(CWorkThread), 0, 0, CREATE_SUSPENDED);
 	m_pCommThread->ResumeThread();
 
+	m_pTcpThread = (CTcpThread *)AfxBeginThread(RUNTIME_CLASS(CTcpThread), 0, 0, CREATE_SUSPENDED);
+	m_pTcpThread->ResumeThread();
+
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 

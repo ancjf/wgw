@@ -33,7 +33,7 @@ IMPLEMENT_DYNCREATE(CTcpThread, CWinThread)
 
 static const char MESSAGE[] = "Hello, World!\n";
 
-static const int PORT = 9995;
+static const int PORT = 8800;
 
 
 static void conn_writecb(struct bufferevent *bev, void *user_data)
@@ -41,7 +41,7 @@ static void conn_writecb(struct bufferevent *bev, void *user_data)
     struct evbuffer *output = bufferevent_get_output(bev);
     if (evbuffer_get_length(output) == 0) {
         printf("flushed answer\n");
-        bufferevent_free(bev);
+        //bufferevent_free(bev);
     }
 }
 
@@ -94,10 +94,10 @@ static void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
         return;
     }
     bufferevent_setcb(bev, conn_readcb, conn_writecb, conn_eventcb, NULL);
-    bufferevent_enable(bev, EV_WRITE);
-    bufferevent_disable(bev, EV_READ);
+    bufferevent_enable(bev, EV_WRITE | EV_READ);
+    //bufferevent_enable(bev, EV_READ);
 
-    bufferevent_write(bev, MESSAGE, strlen(MESSAGE));
+    //bufferevent_write(bev, MESSAGE, strlen(MESSAGE));
 }
 
 void tcpmain(void *argv)
@@ -176,6 +176,54 @@ BOOL CTcpThread::InitInstance()
 
 int CTcpThread::Run()
 {
+   struct event_base *base;
+    struct evconnlistener *listener;
+    struct event *signal_event;
+
+    struct sockaddr_in sin;
+
+#ifdef WIN32
+    WSADATA wsa_data;
+    WSAStartup(0x0201, &wsa_data);
+#endif
+
+    base = event_base_new();
+    if (!base) 
+    {
+        fprintf(stderr, "Could not initialize libevent!\n");
+        return -1;
+    }
+
+    memset(&sin, 0, sizeof(sin));
+    sin.sin_family = AF_INET;
+    sin.sin_port = htons(PORT);
+
+    listener = evconnlistener_new_bind(base, listener_cb, (void *)base,
+        LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE, -1,
+        (struct sockaddr*)&sin,
+        sizeof(sin));
+
+    if (!listener) 
+    {
+        fprintf(stderr, "Could not create a listener!\n");
+        return -1;
+    }
+
+    signal_event = evsignal_new(base, SIGINT, signal_cb, (void *)base);
+
+    if (!signal_event || event_add(signal_event, NULL)<0) 
+    {
+        fprintf(stderr, "Could not create/add a signal event!\n");
+        return -1;
+    }
+
+    event_base_dispatch(base);
+
+    evconnlistener_free(listener);
+    event_free(signal_event);
+    event_base_free(base);
+
+    printf("done\n");
 	return CWinThread::Run();
 }
 
