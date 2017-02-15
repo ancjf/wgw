@@ -35,6 +35,24 @@ static const char MESSAGE[] = "Hello, World!\n";
 
 static const int PORT = 8800;
 
+#include <Ws2tcpip.h>
+#pragma comment(lib,"WS2_32.LIB")
+
+CString getPeerName(evutil_socket_t fd)
+{
+	char ipAddr[INET_ADDRSTRLEN];
+	sockaddr_in peerAddr;
+	int len = sizeof(sockaddr_in);
+	int r = getpeername(fd,(sockaddr *)&peerAddr, &len);
+
+	inet_ntop(AF_INET, &peerAddr.sin_addr, ipAddr, sizeof(ipAddr));
+	int port =ntohs(peerAddr.sin_port);
+
+	CString tmp;
+	tmp.Format(TEXT("%s:%d"), ipAddr, port);
+
+	return tmp;
+}
 
 static void conn_writecb(struct bufferevent *bev, void *user_data)
 {
@@ -93,6 +111,8 @@ static void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
         event_base_loopbreak(base);
         return;
     }
+
+	getPeerName(fd);
     bufferevent_setcb(bev, conn_readcb, conn_writecb, conn_eventcb, NULL);
     bufferevent_enable(bev, EV_WRITE | EV_READ);
     //bufferevent_enable(bev, EV_READ);
