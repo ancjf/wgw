@@ -44,6 +44,8 @@
 #include "common.h"
 
 #define WM_USER_THREADEND WM_USER + 10
+#define WM_USER_NEWLINK WM_USER + 11
+
 #define DEBUG_TEST 1
 
 #ifdef _UNICODE

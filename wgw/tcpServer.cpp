@@ -112,7 +112,12 @@ static void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
         return;
     }
 
-	getPeerName(fd);
+	CString ipport = getPeerName(fd);
+	unsigned len = ipport.GetLength()+1;
+	char *buf = (char*)malloc(len);
+	strcpy(buf, ipport.GetBuffer());
+	::PostMessage(AfxGetMainWnd()->m_hWnd, WM_USER_NEWLINK, (WPARAM)buf, len);
+
     bufferevent_setcb(bev, conn_readcb, conn_writecb, conn_eventcb, NULL);
     bufferevent_enable(bev, EV_WRITE | EV_READ);
     //bufferevent_enable(bev, EV_READ);
@@ -252,6 +257,25 @@ int CTcpThread::ExitInstance()
 	// TODO: 在此执行任意逐线程清理
 
 	return CWinThread::ExitInstance();
+}
+
+bool CTcpThread::addInput(CString iplist, char *buf, unsigned len)
+{
+	m_mutex.Lock();
+
+	uint32_t *p = (uint32_t *)malloc(len + sizeof(uint32_t));
+	if(!p){
+		m_mutex.Unlock();
+		return false;
+	}
+
+	p[0] = len;
+	memcpy(p+1, buf, len);
+	m_msg.push_back(TcpMsg(iplist, (void*)buf, len));
+	m_Event.SetEvent();
+
+	m_mutex.Unlock();
+	return true;
 }
 
 BEGIN_MESSAGE_MAP(CTcpThread, CWinThread)

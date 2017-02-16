@@ -152,6 +152,7 @@ BEGIN_MESSAGE_MAP(CwgwDlg, CDialogEx)
 	ON_EN_CHANGE(IDC_RFID, &CwgwDlg::OnEnChangeRfid)
 	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB1, &CwgwDlg::OnTcnSelchangeTab1)
 	ON_MESSAGE(WM_USER_THREADEND, OnUserThreadend)
+	ON_MESSAGE(WM_USER_NEWLINK, OnUsernNewLink)
 END_MESSAGE_MAP()
 
 
@@ -726,5 +727,14 @@ LRESULT CwgwDlg::OnUserThreadend(WPARAM wParam, LPARAM lParam)
 
 	getMsgOne(msg, len);
 	free(msg);
+	return 0;
+} 
+
+LRESULT CwgwDlg::OnUsernNewLink(WPARAM wParam, LPARAM lParam) 
+{
+	CComboBox * CCombox = (CComboBox *)GetDlgItem(IDC_COMLIST);
+
+	CCombox->AddString((char*)wParam);
+	free((char*)wParam);
 	return 0;
 } 

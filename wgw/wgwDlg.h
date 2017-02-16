@@ -67,6 +67,7 @@ public:
 	DECLARE_EVENTSINK_MAP()
 	void OnCommMscomm1();
 	afx_msg LRESULT OnUserThreadend(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnUsernNewLink(WPARAM wParam, LPARAM lParam);
 private:
 	CMscomm1 m_ctrlComm;
 	bool m_commOpened;

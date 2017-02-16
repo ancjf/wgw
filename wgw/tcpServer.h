@@ -10,6 +10,14 @@ int beginServer();
 
 using namespace std;
 
+class TcpMsg
+{
+public:
+	TcpMsg(CString iplist, void *data, unsigned len){m_iplist = iplist; m_data = data; m_len = len;};
+	CString m_iplist;
+	void *m_data;
+	unsigned m_len;
+};
 
 class CTcpThread : public CWinThread
 {
@@ -22,6 +30,7 @@ protected:
 public:
 	virtual BOOL InitInstance();
 	virtual int ExitInstance();
+	bool addInput(CString iplist, char *buf, unsigned len);
 	/*
 	bool open(CString name, unsigned speed);
 	bool close();
@@ -33,5 +42,10 @@ protected:
 	virtual int Run();
 
 private:
+	class msgBuffer m_msgBuffer;
 	int m_port;
+
+	vector<TcpMsg> m_msg;
+	CEvent m_Event;
+	CMutex m_mutex;
 };
